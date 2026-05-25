@@ -26,38 +26,13 @@ public class MenuState extends State {
 	private static final int CONTROL_OPTION_GAP = 16;
 	private static final int CONTROL_OPTION_Y = 642;
 
-	private int mIndex;
-	
-	private float selectedTime;
-
 	@Override
 	public void init() {
-		mIndex = 0;
-		selectedTime = 0;
 	}
 
 	@Override
 	public void update(float delta) {
-		if (selectedTime > 0) {
-			selectedTime += delta;
-			if (selectedTime > 3){
-				selectedTime = 0;
-				switch(mIndex) {
-				case 0:
-					setCurrentState(new LevelSelectState());
-					break;
-				case 1:
-					setCurrentState(new PlayState(true));
-					break;
-				case 2:
-					setCurrentState(new HelpState());
-					break;
-				case 3:
-					GameMainActivity.sGame.exit();
-					break;
-				}
-			}
-		}
+		// No delayed transition in main menu. Keep immediate response.
 	}
 
 	@Override
@@ -75,12 +50,10 @@ public class MenuState extends State {
 		float subtitleWidth = g.measureText("选择模式开始挑战");
 		g.drawString("选择模式开始挑战", (GameMainActivity.GAME_WIDTH - (int)subtitleWidth) / 2, 170);
 
-		float blink = selectedTime - (int)selectedTime;
 		for (int i = 0; i < MENU_ITEMS.length; i++) {
 			int top = BUTTON_TOP + i * BUTTON_GAP;
-			boolean active = mIndex == i && (selectedTime == 0 || blink > 0.5f || blink < 0.2f);
-			int color = active ? Color.rgb(255, 198, 84) : Color.argb(210, 255, 255, 255);
-			int shadow = active ? Color.argb(100, 255, 173, 59) : Color.argb(78, 3, 26, 54);
+			int color = Color.argb(210, 255, 255, 255);
+			int shadow = Color.argb(78, 3, 26, 54);
 
 			g.setColor(shadow);
 			g.fillRoundRect(BUTTON_LEFT + 4, top + 4, BUTTON_WIDTH, BUTTON_HEIGHT, 18);
@@ -144,12 +117,24 @@ public class MenuState extends State {
 				int top = BUTTON_TOP + i * BUTTON_GAP;
 				int bottom = top + BUTTON_HEIGHT;
 				if (scaleY > top && scaleY < bottom) {
-					if (i != mIndex) {
-						mIndex = i;
-					}else {
-						Assets.playSound(Assets.selectedID);
-						selectedTime = 1;
+					Assets.playSound(Assets.selectedID);
+					switch (i) {
+					case 0:
+						setCurrentState(new LevelSelectState());
+						break;
+					case 1:
+						setCurrentState(new PlayState(true));
+						break;
+					case 2:
+						setCurrentState(new HelpState());
+						break;
+					case 3:
+						GameMainActivity.sGame.exit();
+						break;
+					default:
+						break;
 					}
+					return true;
 				}					
 			}			
 		}

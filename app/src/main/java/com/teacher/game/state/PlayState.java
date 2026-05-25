@@ -581,6 +581,7 @@ public class PlayState extends State {
 
 		int targetDx = 0;
 		int targetDy = 0;
+		boolean hardRamMode = false;
 		if (escapingBoundary) {
 			mAutoPilotState = AutoPilotState.ESCAPE_BOUNDARY;
 			mAutoTargetFish = null;
@@ -598,15 +599,25 @@ public class PlayState extends State {
 		}else {
 			Fish chaseFish = chooseAutoTarget(bestFood, myCenterX, myCenterY);
 			if (chaseFish != null) {
-				int[] predicted = predictFishCenter(chaseFish);
-				int foodCenterX = predicted[0];
-				int foodCenterY = predicted[1];
-				targetDx = foodCenterX - myCenterX;
-				targetDy = foodCenterY - myCenterY;
-				mAutoPilotState = resolveChaseState(targetDx, targetDy);
-				int[] chaseVector = shapeChaseVector(targetDx, targetDy, mAutoPilotState);
-				targetDx = chaseVector[0];
-				targetDy = chaseVector[1];
+				int liveCenterX = chaseFish.getX() + chaseFish.getWidth() / 2;
+				int liveCenterY = chaseFish.getY() + chaseFish.getHeight() / 2;
+				int liveDx = liveCenterX - myCenterX;
+				int liveDy = liveCenterY - myCenterY;
+
+				// New chase framework:
+				// 1) far-range: approach with mild vertical correction
+				// 2) close-range: force straight ram, bypass smoothing
+				if (Math.abs(liveDx) <= 280) {
+					targetDx = liveDx;
+					targetDy = liveDy;
+					mAutoPilotState = AutoPilotState.CHASE_TARGET;
+					hardRamMode = true;
+				}else {
+					int[] predicted = predictFishCenter(chaseFish);
+					targetDx = predicted[0] - myCenterX;
+					targetDy = predicted[1] - myCenterY;
+					mAutoPilotState = AutoPilotState.CHASE_TARGET;
+				}
 			}else {
 				mAutoPilotState = AutoPilotState.CRUISE;
 				int centerX = GameMainActivity.GAME_WIDTH / 2;
@@ -618,8 +629,24 @@ public class PlayState extends State {
 
 		int desiredX = normalizeControl(targetDx, true);
 		int desiredY = normalizeControl(targetDy, false);
+		if (hardRamMode) {
+			// Force straight bite path to avoid hovering around the target.
+			desiredX = targetDx >= 0 ? 160 : -160;
+			int absDy = Math.abs(targetDy);
+			if (absDy < 80) {
+				desiredY = 0;
+			}else if (absDy < 170) {
+				desiredY = targetDy > 0 ? 40 : -40;
+			}else {
+				desiredY = targetDy > 0 ? 70 : -70;
+			}
+			mAutoInputX = desiredX;
+			mAutoInputY = desiredY;
+			mMyFish.movePress(mAutoInputX, mAutoInputY);
+			return;
+		}
 		mAutoInputX = smoothAutoAxis(mAutoInputX, desiredX, targetDx, 170);
-		mAutoInputY = smoothAutoAxis(mAutoInputY, desiredY, targetDy, 100);
+		mAutoInputY = smoothAutoAxis(mAutoInputY, desiredY, targetDy, 220);
 		mMyFish.movePress(mAutoInputX, mAutoInputY);
 	}
 
@@ -722,6 +749,19 @@ public class PlayState extends State {
 		if (state == AutoPilotState.ALIGN_TARGET) {
 			int adjustedDx = keepForwardChase(targetDx);
 			int adjustedDy = targetDy > 0 ? Math.max(targetDy, 220) : Math.min(targetDy, -220);
+			return new int[] {adjustedDx, adjustedDy};
+		}
+
+		if (state == AutoPilotState.CHASE_TARGET && absDx < 220) {
+			int adjustedDx = keepForwardChase(targetDx);
+			int adjustedDy;
+			if (absDy < 70) {
+				adjustedDy = 0;
+			}else if (absDy < 120) {
+				adjustedDy = targetDy > 0 ? 55 : -55;
+			}else {
+				adjustedDy = targetDy;
+			}
 			return new int[] {adjustedDx, adjustedDy};
 		}
 
