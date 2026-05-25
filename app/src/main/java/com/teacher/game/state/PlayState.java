@@ -14,6 +14,7 @@ import com.teacher.game.model.Fish;
 import com.teacher.game.model.LevelConfig;
 import com.teacher.game.model.LevelRepository;
 import com.teacher.game.model.MyFish;
+import com.teacher.game.model.CompanionFish;
 import com.teacher.game.model.PowerUp;
 import com.teacher.game.model.PowerUpType;
 
@@ -97,8 +98,12 @@ public class PlayState extends State {
 	private int mAutoInputY;
 	
 	private Fish mAutoTargetFish;
+
+	private PowerUp mAutoTargetPowerUp;
 	
 	private float mAutoTargetLockTime;
+
+	private float mAutoPowerUpLockTime;
 	
 	private AutoPilotState mAutoPilotState;
 
@@ -111,10 +116,17 @@ public class PlayState extends State {
 	private static final int MAX_POWERUPS = 3;
 
 	private static final int POWERUP_SIZE = 36;
+	private static final int COMPANION_CHARGE_TARGET = 6;
 
 	private boolean mDebugPanelVisible;
 
 	private float mDebugGameSpeed;
+
+	private ArrayList<CompanionFish> mCompanionFishList;
+
+	private int mCompanionCharge;
+
+	private ModeRules mModeRules;
 
 	public PlayState() {
 		this(0, false);
@@ -145,13 +157,18 @@ public class PlayState extends State {
 		mAutoInputX = 0;
 		mAutoInputY = 0;
 		mAutoTargetFish = null;
+		mAutoTargetPowerUp = null;
 		mAutoTargetLockTime = 0;
+		mAutoPowerUpLockTime = 0;
 		mAutoPilotState = AutoPilotState.CRUISE;
 		mPowerUps = new ArrayList<PowerUp>();
 		mSpeedTimer = 0;
 		mFreezeTimer = 0;
 		mDebugPanelVisible = false;
 		mDebugGameSpeed = 1.0f;
+		mCompanionFishList = new ArrayList<CompanionFish>();
+		mCompanionCharge = 0;
+		mModeRules = ModeRules.forMode(mEndlessMode);
 		Assets.playMusic("backgoundsound.mid", true);
 
 		mMyFish = new MyFish();
@@ -203,12 +220,13 @@ public class PlayState extends State {
 
 	@Override
 	public void update(float delta) {
-		if (mGamePaused)
+		if (mGamePaused || isRoundFinished())
 			return;
 		float effectiveDelta = delta * mDebugGameSpeed;
 		if (mAutoMode) {
 			mAutoDecisionTimer += effectiveDelta;
 			mAutoTargetLockTime += effectiveDelta;
+			mAutoPowerUpLockTime += effectiveDelta;
 		}
 
 		// Power-up timers
@@ -264,8 +282,10 @@ public class PlayState extends State {
 			}
 
 			mMyFish.update();
+			updateCompanion();
 			if (mMyFish.mStartTime > 10) {
 				checkCollides();
+				checkCompanionCollides();
 				checkPowerUpCollision();
 			}
 		}
@@ -336,6 +356,7 @@ public class PlayState extends State {
 				GameMainActivity.GAME_HEIGHT);
 
 		mLayerManager.paint(g.getCanvas(), 0, 0);
+		drawCompanionMarker(g);
 
 		if (mTouchDown) {
 			g.drawImage(Assets.virjoy_outter, mTouchX-OUT_W, mTouchY-OUT_W);
@@ -377,6 +398,27 @@ public class PlayState extends State {
 		drawDebugButton(g);
 		if (mDebugPanelVisible) {
 			drawDebugPanel(g);
+		}
+	}
+
+	private void drawCompanionMarker(Painter g) {
+		if (mCompanionFishList == null || mCompanionFishList.isEmpty()) {
+			return;
+		}
+		for (CompanionFish companion : mCompanionFishList) {
+			int centerX = companion.getX() + companion.getWidth() / 2;
+			int baseY = companion.getY() - 10;
+
+			// Smaller green inverted triangle marker.
+			g.setColor(Color.argb(228, 26, 220, 114));
+			g.fillRect(centerX - 6, baseY, 12, 3);
+			g.fillRect(centerX - 4, baseY + 3, 8, 3);
+			g.fillRect(centerX - 2, baseY + 6, 4, 3);
+
+			// Subtle dark outline for readability on bright backgrounds.
+			g.setColor(Color.argb(180, 8, 62, 40));
+			g.fillRect(centerX - 7, baseY - 1, 1, 10);
+			g.fillRect(centerX + 6, baseY - 1, 1, 10);
 		}
 	}
 
@@ -494,6 +536,114 @@ public class PlayState extends State {
 		g.fillRect(PAUSE_BTN_X + 28, PAUSE_BTN_Y + 10, 6, 28);
 
 		drawPowerUpIndicators(g);
+		drawCompanionIndicators(g);
+	}
+
+	private void drawCompanionIndicators(Painter g) {
+		int cardX = 40;
+		int cardY = 88;
+		g.setColor(Color.argb(168, 6, 34, 66));
+		g.fillRoundRect(cardX, cardY, 320, 54, 16);
+
+		g.setFont(Typeface.SANS_SERIF, 22);
+		g.setColor(Color.WHITE);
+		g.drawString("同伴 " + mCompanionFishList.size() + " 只", cardX + 14, cardY + 35);
+		g.setColor(Color.argb(120, 255, 255, 255));
+		g.fillRoundRect(cardX + 168, cardY + 20, 136, 14, 8);
+		int w = (int)(136f * mCompanionCharge / COMPANION_CHARGE_TARGET);
+		g.setColor(Color.rgb(255, 198, 84));
+		g.fillRoundRect(cardX + 168, cardY + 20, w, 14, 8);
+	}
+
+	private void updateCompanion() {
+		if (mCompanionFishList == null || mCompanionFishList.isEmpty()) {
+			return;
+		}
+		for (CompanionFish companion : mCompanionFishList) {
+			Fish target = findCompanionTarget(companion);
+			if (target != null) {
+				companion.dashToward(target);
+			} else {
+				companion.follow(mMyFish);
+			}
+		}
+	}
+
+	private Fish findCompanionTarget(CompanionFish companion) {
+		if (companion == null) {
+			return null;
+		}
+		Fish target = null;
+		double nearest = Double.MAX_VALUE;
+		int cx = companion.getX() + companion.getWidth() / 2;
+		int cy = companion.getY() + companion.getHeight() / 2;
+		for (Fish fish : mOtherFish) {
+			if (!isOnScreen(fish) || fish.mSize >= mMyFish.mSize) {
+				continue;
+			}
+			int tx = fish.getX() + fish.getWidth() / 2;
+			int ty = fish.getY() + fish.getHeight() / 2;
+			double dis = distance(cx, cy, tx, ty);
+			if (dis < nearest && dis < 260) {
+				nearest = dis;
+				target = fish;
+			}
+		}
+		return target;
+	}
+
+	private void spawnCompanionIfReady() {
+		if (mCompanionCharge < COMPANION_CHARGE_TARGET || isRoundFinished()) {
+			return;
+		}
+		mCompanionCharge -= COMPANION_CHARGE_TARGET;
+		CompanionFish companion = new CompanionFish();
+		int offsetIndex = mCompanionFishList.size() % 4;
+		int spawnOffsetX = -90 - offsetIndex * 28;
+		int spawnOffsetY = 30 + (offsetIndex % 2) * 22;
+		companion.setPosition(mMyFish.getX() + spawnOffsetX, mMyFish.getY() + spawnOffsetY);
+		mCompanionFishList.add(companion);
+		mLayerManager.append(companion);
+	}
+
+	private void despawnCompanion() {
+		for (CompanionFish companion : mCompanionFishList) {
+			mLayerManager.remove(companion);
+		}
+		mCompanionFishList.clear();
+	}
+
+	private void checkCompanionCollides() {
+		if (mCompanionFishList == null || mCompanionFishList.isEmpty()) {
+			return;
+		}
+		for (CompanionFish companion : mCompanionFishList) {
+			for (Fish f : mOtherFish) {
+				if (!isOnScreen(f) || !companion.collidesWith(f, false)) {
+					continue;
+				}
+				if (f.mSize < mMyFish.mSize) {
+					addScore((f.mSize + 1) * 10);
+					companion.recordAssistEat();
+					f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+				}
+			}
+		}
+	}
+
+	private void addScore(int points) {
+		if (!mModeRules.canGainScore(mScore, mLevelConfig.targetScore)) {
+			return;
+		}
+		mScore += points;
+		mScore = mModeRules.clampScore(mScore, mLevelConfig.targetScore);
+		if (mEndlessMode && mScore > mEndlessHighScore) {
+			mEndlessHighScore = mScore;
+			GameMainActivity.saveEndlessHighScore(mEndlessHighScore);
+		} else if (mScore > mHighScore) {
+			mHighScore = mScore;
+			GameMainActivity.saveHighScore(mHighScore);
+		}
 	}
 
 	private void drawPowerUpIndicators(Painter g) {
@@ -536,12 +686,14 @@ public class PlayState extends State {
 			mAutoInputX = 0;
 			mAutoInputY = 0;
 			mAutoTargetFish = null;
+			mAutoTargetPowerUp = null;
 			mAutoTargetLockTime = 0;
+			mAutoPowerUpLockTime = 0;
 			mAutoPilotState = AutoPilotState.CRUISE;
 			return;
 		}
 		
-		if (mAutoDecisionTimer < 0.16f) {
+		if (mAutoDecisionTimer < 0.10f) {
 			return;
 		}
 		mAutoDecisionTimer = 0;
@@ -556,6 +708,8 @@ public class PlayState extends State {
 		double nearestThreatDistance = Double.MAX_VALUE;
 		Fish bestFood = null;
 		double bestFoodScore = Double.MAX_VALUE;
+		PowerUp bestPowerUp = null;
+		double bestPowerUpScore = Double.MAX_VALUE;
 
 		for (Fish fish : mOtherFish) {
 			if (!isOnScreen(fish)) {
@@ -579,6 +733,17 @@ public class PlayState extends State {
 			}
 		}
 
+		for (PowerUp powerUp : mPowerUps) {
+			if (!isOnScreen(powerUp)) {
+				continue;
+			}
+			double candidateScore = scorePowerUpTarget(powerUp, myCenterX, myCenterY);
+			if (candidateScore < bestPowerUpScore) {
+				bestPowerUpScore = candidateScore;
+				bestPowerUp = powerUp;
+			}
+		}
+
 		int targetDx = 0;
 		int targetDy = 0;
 		boolean hardRamMode = false;
@@ -596,7 +761,23 @@ public class PlayState extends State {
 			int threatCenterY = nearestThreat.getY() + nearestThreat.getHeight() / 2;
 			targetDx = myCenterX - threatCenterX;
 			targetDy = myCenterY - threatCenterY;
+		}else if (shouldSeekPowerUp(bestPowerUp, nearestThreatDistance)) {
+			PowerUp chasePowerUp = chooseAutoPowerUpTarget(bestPowerUp, myCenterX, myCenterY);
+			if (chasePowerUp != null) {
+				int powerUpCenterX = chasePowerUp.getX() + chasePowerUp.getWidth() / 2;
+				int powerUpCenterY = chasePowerUp.getY() + chasePowerUp.getHeight() / 2;
+				targetDx = powerUpCenterX - myCenterX;
+				targetDy = powerUpCenterY - myCenterY;
+				mAutoPilotState = AutoPilotState.CHASE_TARGET;
+				hardRamMode = true;
+				mAutoTargetFish = null;
+			} else {
+				mAutoTargetPowerUp = null;
+				mAutoPowerUpLockTime = 0;
+			}
 		}else {
+			mAutoTargetPowerUp = null;
+			mAutoPowerUpLockTime = 0;
 			Fish chaseFish = chooseAutoTarget(bestFood, myCenterX, myCenterY);
 			if (chaseFish != null) {
 				int liveCenterX = chaseFish.getX() + chaseFish.getWidth() / 2;
@@ -607,7 +788,7 @@ public class PlayState extends State {
 				// New chase framework:
 				// 1) far-range: approach with mild vertical correction
 				// 2) close-range: force straight ram, bypass smoothing
-				if (Math.abs(liveDx) <= 280) {
+				if (Math.abs(liveDx) <= 420 || (Math.abs(liveDx) <= 520 && Math.abs(liveDy) <= 150)) {
 					targetDx = liveDx;
 					targetDy = liveDy;
 					mAutoPilotState = AutoPilotState.CHASE_TARGET;
@@ -633,12 +814,12 @@ public class PlayState extends State {
 			// Force straight bite path to avoid hovering around the target.
 			desiredX = targetDx >= 0 ? 160 : -160;
 			int absDy = Math.abs(targetDy);
-			if (absDy < 80) {
+			if (absDy < 56) {
 				desiredY = 0;
-			}else if (absDy < 170) {
-				desiredY = targetDy > 0 ? 40 : -40;
+			}else if (absDy < 140) {
+				desiredY = targetDy > 0 ? 55 : -55;
 			}else {
-				desiredY = targetDy > 0 ? 70 : -70;
+				desiredY = targetDy > 0 ? 85 : -85;
 			}
 			mAutoInputX = desiredX;
 			mAutoInputY = desiredY;
@@ -669,6 +850,83 @@ public class PlayState extends State {
 		mAutoTargetFish = nearestFood;
 		mAutoTargetLockTime = 0;
 		return mAutoTargetFish;
+	}
+
+	private PowerUp chooseAutoPowerUpTarget(PowerUp nearestPowerUp, int myCenterX, int myCenterY) {
+		if (mAutoTargetPowerUp != null) {
+			if (!isOnScreen(mAutoTargetPowerUp)) {
+				mAutoTargetPowerUp = null;
+				mAutoPowerUpLockTime = 0;
+			} else {
+				int targetCenterX = mAutoTargetPowerUp.getX() + mAutoTargetPowerUp.getWidth() / 2;
+				int targetCenterY = mAutoTargetPowerUp.getY() + mAutoTargetPowerUp.getHeight() / 2;
+				double distance = distance(myCenterX, myCenterY, targetCenterX, targetCenterY);
+				if (distance < 320 || mAutoPowerUpLockTime < 0.8f) {
+					return mAutoTargetPowerUp;
+				}
+			}
+		}
+
+		mAutoTargetPowerUp = nearestPowerUp;
+		mAutoPowerUpLockTime = 0;
+		return mAutoTargetPowerUp;
+	}
+
+	private boolean shouldSeekPowerUp(PowerUp bestPowerUp, double nearestThreatDistance) {
+		if (bestPowerUp == null) {
+			return false;
+		}
+		if (nearestThreatDistance < 260) {
+			return false;
+		}
+		if (bestPowerUp.type == PowerUpType.SHIELD && !mMyFish.mHasShield) {
+			return true;
+		}
+		if (bestPowerUp.type == PowerUpType.SPEED && mSpeedTimer <= 0) {
+			return true;
+		}
+		if (bestPowerUp.type == PowerUpType.FREEZE && mFreezeTimer <= 0) {
+			return true;
+		}
+		if (bestPowerUp.type == PowerUpType.BOMB) {
+			return true;
+		}
+		return mPowerUps.size() >= 2;
+	}
+
+	private double scorePowerUpTarget(PowerUp powerUp, int myCenterX, int myCenterY) {
+		int powerUpCenterX = powerUp.getX() + powerUp.getWidth() / 2;
+		int powerUpCenterY = powerUp.getY() + powerUp.getHeight() / 2;
+		double score = distance(myCenterX, myCenterY, powerUpCenterX, powerUpCenterY);
+
+		switch (powerUp.type) {
+			case SHIELD:
+				score += mMyFish.mHasShield ? 120 : -180;
+				break;
+			case SPEED:
+				score += mSpeedTimer > 0 ? 90 : -120;
+				break;
+			case FREEZE:
+				score += mFreezeTimer > 0 ? 110 : -100;
+				break;
+			case BOMB:
+				score -= 60;
+				break;
+		}
+
+		for (Fish fish : mOtherFish) {
+			if (!isOnScreen(fish) || fish.mSize < mMyFish.mSize) {
+				continue;
+			}
+			int fishCenterX = fish.getX() + fish.getWidth() / 2;
+			int fishCenterY = fish.getY() + fish.getHeight() / 2;
+			double dangerDistance = distance(powerUpCenterX, powerUpCenterY, fishCenterX, fishCenterY);
+			if (dangerDistance < 170) {
+				score += 260 - dangerDistance;
+			}
+		}
+
+		return score;
 	}
 
 	private double scoreFoodTarget(Fish fish, int myCenterX, int myCenterY) {
@@ -866,18 +1124,12 @@ public class PlayState extends State {
 	private void drawRoundEndOverlay(Painter g) {
 		g.setColor(Color.argb(168, 0, 0, 0));
 		g.fillRect(0, 0, GameMainActivity.GAME_WIDTH,GameMainActivity.GAME_HEIGHT);
-
-		if (mEndlessMode) {
-			drawOverlayCard(g, "无尽结束", "本次得分 " + mScore + "，再来挑战更高分");
-		}else if (didClearLevel()) {
-			if (hasNextLevel()) {
-				drawOverlayCard(g, "本关完成", "准备进入第 " + (mLevelConfig.index + 1) + " 关");
-			}else {
-				drawOverlayCard(g, "全部通关", "恭喜完成全部关卡挑战");
-			}
-		}else {
-			drawOverlayCard(g, "挑战失败", "再试一次，看看能不能拿到更高分");
-		}
+		boolean cleared = didClearLevel();
+		boolean hasNext = hasNextLevel();
+		drawOverlayCard(
+				g,
+				mModeRules.getRoundEndTitle(cleared, hasNext),
+				mModeRules.getRoundEndSubtitle(mScore, mLevelConfig.index + 1, cleared, hasNext));
 		drawOverlayButtons(g, getRoundEndButtonLabels());
 	}
 
@@ -932,11 +1184,11 @@ public class PlayState extends State {
 	}
 
 	private boolean isRoundFinished() {
-		return mLife <= 0 || didClearLevel();
+		return mModeRules.isRoundFinished(mLife, mScore, mLevelConfig.targetScore);
 	}
 
 	private boolean didClearLevel() {
-		return !mEndlessMode && mScore >= mLevelConfig.targetScore;
+		return mModeRules.didClearLevel(mScore, mLevelConfig.targetScore);
 	}
 
 	private boolean hasNextLevel() {
@@ -944,16 +1196,7 @@ public class PlayState extends State {
 	}
 
 	private String[] getRoundEndButtonLabels() {
-		if (mEndlessMode) {
-			return new String[] {"重新开始", "返回菜单"};
-		}
-		if (didClearLevel()) {
-			if (hasNextLevel()) {
-				return new String[] {"下一关", "重新开始", "返回菜单"};
-			}
-			return new String[] {"重新开始", "返回菜单"};
-		}
-		return new String[] {"重试本关", "返回菜单"};
+		return mModeRules.getRoundEndButtonLabels(didClearLevel(), hasNextLevel());
 	}
 
 	private boolean isPointInside(int x, int y, int left, int top, int width, int height) {
@@ -1007,22 +1250,13 @@ public class PlayState extends State {
 		}
 
 		if (isRoundFinished()) {
+			boolean cleared = didClearLevel();
+			boolean hasNext = hasNextLevel();
 			String[] labels = getRoundEndButtonLabels();
 			for (int i = 0; i < labels.length; i++) {
 				if (isPointInside(scaleX, scaleY, getOverlayButtonX(labels.length, i), OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H)) {
-					if (didClearLevel() && hasNextLevel()) {
-						if (i == 0) {
-							nextLevel();
-						}else if (i == 1) {
-							restartGame();
-						}else {
-							returnToMenu();
-						}
-					}else if (i == 0) {
-						restartGame();
-					}else {
-						returnToMenu();
-					}
+					ModeRules.RoundEndAction action = mModeRules.resolveRoundEndAction(i, cleared, hasNext);
+					handleRoundEndAction(action);
 					return true;
 				}
 			}
@@ -1030,6 +1264,24 @@ public class PlayState extends State {
 		}
 
 		return false;
+	}
+
+	private void handleRoundEndAction(ModeRules.RoundEndAction action) {
+		if (action == null) {
+			return;
+		}
+		switch (action) {
+			case NEXT_LEVEL:
+				nextLevel();
+				break;
+			case RETURN_MENU:
+				returnToMenu();
+				break;
+			case RESTART:
+			default:
+				restartGame();
+				break;
+		}
 	}
 
 	private boolean handleDebugTap(int scaleX, int scaleY) {
@@ -1167,6 +1419,10 @@ public class PlayState extends State {
 			PowerUp p = it.next();
 			if (mMyFish.collidesWith(p, false)) {
 				applyPowerUp(p);
+				if (p == mAutoTargetPowerUp) {
+					mAutoTargetPowerUp = null;
+					mAutoPowerUpLockTime = 0;
+				}
 				it.remove();
 				mLayerManager.remove(p);
 			}
@@ -1198,6 +1454,9 @@ public class PlayState extends State {
 	public void checkCollides() {
 
 		for (Fish f : mOtherFish) {
+			if (isRoundFinished()) {
+				break;
+			}
 			if (f.collidesWith(mMyFish, false)) {
 
 				if (f.mSize >= mMyFish.mSize) {
@@ -1220,6 +1479,7 @@ public class PlayState extends State {
 					}
 
 					mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+					break;
 
 				}else {
 					if (mMyFish.mNonceState == Fish.SWIML || mMyFish.mNonceState == Fish.SWERVE_L) {
@@ -1228,23 +1488,14 @@ public class PlayState extends State {
 						mMyFish.setNonceState(Fish.EATR);
 					}
 
-					if (mEndlessMode || mScore < mLevelConfig.targetScore) {
-						mScore += (f.mSize + 1)* 20;
-						if (mEndlessMode && mScore > mEndlessHighScore) {
-							mEndlessHighScore = mScore;
-							GameMainActivity.saveEndlessHighScore(mEndlessHighScore);
-						}else if (mScore > mHighScore) {
-							mHighScore = mScore;
-							GameMainActivity.saveHighScore(mHighScore);
-						}
+					if (mModeRules.canGainScore(mScore, mLevelConfig.targetScore)) {
+						addScore((f.mSize + 1) * 20);
+						mCompanionCharge = Math.min(COMPANION_CHARGE_TARGET, mCompanionCharge + 1);
+						spawnCompanionIfReady();
 					}
-					if (!mEndlessMode && mScore >= mLevelConfig.targetScore) {
-						mScore = mLevelConfig.targetScore;
-						if (mScore > mHighScore) {
-							mHighScore = mScore;
-							GameMainActivity.saveHighScore(mHighScore);
-						}
+					if (didClearLevel()) {
 						mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+						break;
 					}
 					else if (mScore >= 70)
 						mMyFish.setSize(Fish.SUPER);
@@ -1273,17 +1524,11 @@ public class PlayState extends State {
 	}
 
 	private String getModeLabel() {
-		if (mEndlessMode) {
-			return "无尽模式";
-		}
-		return "第" + mLevelConfig.index + "关";
+		return mModeRules.getModeLabel(mLevelConfig.index);
 	}
 
 	private String getScoreLabel() {
-		if (mEndlessMode) {
-			return "分数 " + mScore;
-		}
-		return "分数 " + mScore + " / " + mLevelConfig.targetScore;
+		return mModeRules.getScoreLabel(mScore, mLevelConfig.targetScore);
 	}
 
 	private boolean mGamePaused = false;
