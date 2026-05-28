@@ -61,15 +61,16 @@ public class CollisionManager {
                     mState.mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
                     break;
 
-                } else {
-                    // Player eats the smaller fish
-                    if (mState.mMyFish.mNonceState == Fish.SWIML || mState.mMyFish.mNonceState == Fish.SWERVE_L) {
-                        mState.mMyFish.setNonceState(Fish.EATL);
-                    } else if (mState.mMyFish.mNonceState == Fish.SWIMR || mState.mMyFish.mNonceState == Fish.SWERVE_R) {
-                        mState.mMyFish.setNonceState(Fish.EATR);
-                    }
+				} else {
+					// Player eats the smaller fish
+					mState.mFishEaten++;
+					if (mState.mMyFish.mNonceState == Fish.SWIML || mState.mMyFish.mNonceState == Fish.SWERVE_L) {
+						mState.mMyFish.setNonceState(Fish.EATL);
+					} else if (mState.mMyFish.mNonceState == Fish.SWIMR || mState.mMyFish.mNonceState == Fish.SWERVE_R) {
+						mState.mMyFish.setNonceState(Fish.EATR);
+					}
 
-                    if (mState.mModeRules.canGainScore(mState.mScore, mState.mLevelConfig.targetScore)) {
+					if (mState.mModeRules.canGainScore(mState.mScore, mState.mLevelConfig.targetScore)) {
                         int points = (f.mSize + 1) * 20;
                         if (f.mBehavior == Fish.Behavior.FLEE) points = points * 3 / 2;
                         float comboMult = mState.registerEat();
@@ -106,11 +107,12 @@ public class CollisionManager {
                 if (!isOnScreen(f) || !companion.collidesWith(f, false)) {
                     continue;
                 }
-                if (f.mSize < mState.mMyFish.mSize) {
-                    int points = (f.mSize + 1) * 10;
-                    if (f.mBehavior == Fish.Behavior.FLEE) points = points * 3 / 2;
-                    mState.addScore(points);
-                    companion.recordAssistEat();
+				if (f.mSize < mState.mMyFish.mSize) {
+					int points = (f.mSize + 1) * 10;
+					if (f.mBehavior == Fish.Behavior.FLEE) points = points * 3 / 2;
+					mState.addScore(points);
+					mState.mCompanionAssists++;
+					companion.recordAssistEat();
                     f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
                 }
             }
@@ -125,12 +127,13 @@ public class CollisionManager {
         Iterator<PowerUp> it = mState.mPowerUps.iterator();
         while (it.hasNext()) {
             PowerUp p = it.next();
-            if (mState.mMyFish.collidesWith(p, false)) {
-                applyPowerUp(p);
-                if (mState.mAutoPilot != null) {
-                    mState.mAutoPilot.onPowerUpEaten(p);
-                }
-                it.remove();
+			if (mState.mMyFish.collidesWith(p, false)) {
+				mState.mPowerUpsCollected++;
+				applyPowerUp(p);
+				if (mState.mAutoPilot != null) {
+					mState.mAutoPilot.onPowerUpEaten(p);
+				}
+				it.remove();
                 mState.mLayerManager.remove(p);
             }
         }

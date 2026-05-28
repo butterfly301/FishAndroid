@@ -225,6 +225,9 @@ public class AutoPilot {
             if (dist < stopRadius) {
                 desiredX = 0;
                 desiredY = 0;
+                // Zero out the fish's velocity to stop drift/hovering
+                myFish.mMoveX = 0;
+                myFish.mMoveY = 0;
             } else {
                 float speed = (float) Math.min(dist * 1.5f, maxSpeed);
                 desiredX = (int) (targetDx / dist * speed);

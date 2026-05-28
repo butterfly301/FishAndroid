@@ -62,7 +62,7 @@ public class PlayState extends State {
 	private int mEndlessHighScore;
 	private boolean mEndlessMode;
 
-	private static final int IN_R = 24, IN_45 = 17, OUT_W = 48, IN_W = 24;
+	private static final int IN_R = 36, IN_45 = 25, OUT_W = 72, IN_W = 36;
 	private static final int HUD_LEFT = 20;
 	private static final int HUD_TOP = 18;
 	private static final int MAX_POWERUPS = 3;
@@ -76,6 +76,13 @@ public class PlayState extends State {
 	int mCombo;
 	private float mComboTimer;
 	int mComboPeak;
+
+	// ---------- Round-end statistics ----------
+
+	int mFishEaten;
+	int mPowerUpsCollected;
+	int mCompanionAssists;
+	float mSurvivalTime;
 
 	// Drawing constants shared with TouchHandler (used by drawDebugButton/Panel and drawHud)
 	private static final int PAUSE_BTN_X = 1182;
@@ -120,6 +127,10 @@ public class PlayState extends State {
 		mCombo = 0;
 		mComboTimer = 0;
 		mComboPeak = 0;
+		mFishEaten = 0;
+		mPowerUpsCollected = 0;
+		mCompanionAssists = 0;
+		mSurvivalTime = 0;
 		mHighScore = GameMainActivity.getHighScore();
 		mEndlessHighScore = GameMainActivity.getEndlessHighScore();
 		mLevelConfig = LevelRepository.getLevel(mLevelIndex);
@@ -190,6 +201,7 @@ public class PlayState extends State {
 		if (mGamePaused || isRoundFinished())
 			return;
 		float effectiveDelta = delta * mDebugGameSpeed;
+		mSurvivalTime += effectiveDelta;
 		// Power-up timers
 		if (mSpeedTimer > 0) {
 			mSpeedTimer -= effectiveDelta;
@@ -357,29 +369,29 @@ public class PlayState extends State {
 		drawCompanionMarker(g);
 
 		if (mTouchHandler.mTouchDown) {
-			g.drawImage(Assets.virjoy_outter, mTouchHandler.mTouchX-OUT_W, mTouchHandler.mTouchY-OUT_W);
+			g.drawImage(Assets.virjoy_outter, mTouchHandler.mTouchX-OUT_W, mTouchHandler.mTouchY-OUT_W, OUT_W*2, OUT_W*2);
 
 			if (mTouchHandler.mDX == 0 && mTouchHandler.mDY == 0)
-				g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W, mTouchHandler.mTouchY-IN_W);
+				g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W, mTouchHandler.mTouchY-IN_W, IN_W*2, IN_W*2);
 			if (mTouchHandler.mDX > 0) {
 				if (mTouchHandler.mDY > 0)
-					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W+IN_45, mTouchHandler.mTouchY-IN_W+IN_45);
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W+IN_45, mTouchHandler.mTouchY-IN_W+IN_45, IN_W*2, IN_W*2);
 				else if (mTouchHandler.mDY < 0)
-					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W+IN_45, mTouchHandler.mTouchY-IN_W-IN_45);
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W+IN_45, mTouchHandler.mTouchY-IN_W-IN_45, IN_W*2, IN_W*2);
 				else
-					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W+IN_R, mTouchHandler.mTouchY-IN_W);
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W+IN_R, mTouchHandler.mTouchY-IN_W, IN_W*2, IN_W*2);
 			}
 			else if (mTouchHandler.mDX < 0){
 				if (mTouchHandler.mDY > 0)
-					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W-IN_45, mTouchHandler.mTouchY-IN_W+IN_45);
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W-IN_45, mTouchHandler.mTouchY-IN_W+IN_45, IN_W*2, IN_W*2);
 				else if (mTouchHandler.mDY < 0)
-					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W-IN_45, mTouchHandler.mTouchY-IN_W-IN_45);
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W-IN_45, mTouchHandler.mTouchY-IN_W-IN_45, IN_W*2, IN_W*2);
 				else
-					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W-IN_R, mTouchHandler.mTouchY-IN_W);
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W-IN_R, mTouchHandler.mTouchY-IN_W, IN_W*2, IN_W*2);
 			}else if (mTouchHandler.mDY < 0 ) {
-				g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W, mTouchHandler.mTouchY-IN_W-IN_R);
+				g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W, mTouchHandler.mTouchY-IN_W-IN_R, IN_W*2, IN_W*2);
 			}else if (mTouchHandler.mDY > 0 ) {
-				g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W, mTouchHandler.mTouchY-IN_W+IN_R);
+				g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W, mTouchHandler.mTouchY-IN_W+IN_R, IN_W*2, IN_W*2);
 			}
 		}
 
@@ -399,12 +411,21 @@ public class PlayState extends State {
 			boolean hasNext = hasNextLevel();
 			String subtitle = mModeRules.getRoundEndSubtitle(
 					mScore, mLevelConfig.index + 1, cleared, hasNext);
-			if (mComboPeak >= 2) {
-				subtitle += "  最高连击 x" + mComboPeak;
-			}
+
+			// Build stats panel data
+			String[] stats = new String[] {
+				"得分    " + mScore,
+				"吃掉鱼  " + mFishEaten + " 条",
+				"最高连击 x" + mComboPeak,
+				"收集道具 " + mPowerUpsCollected + " 个",
+				"同伴助攻 " + mCompanionAssists + " 条",
+				"存活时间 " + formatTime(mSurvivalTime)
+			};
+
 			OverlayRenderer.drawRoundEndOverlay(g,
 					mModeRules.getRoundEndTitle(cleared, hasNext),
 					subtitle,
+					stats,
 					getRoundEndButtonLabels());
 		}
 
@@ -730,7 +751,10 @@ public class PlayState extends State {
 					f.setNonceState(wanted);
 				}
 				// Override velocity: track toward player
-				float speed = Math.max(Math.abs(f.mMoveX), 4f) * 2.5f;
+				// Use fixed per-size base speed, NOT f.mMoveX,
+				// to prevent exponential blowup (mMoveX cascading).
+				float baseTrack = 6f + f.mSize * 4f;   // SMALL=10,NORMAL=14,BIG=18,SUPER=22
+				float speed = baseTrack * 2.5f;
 				f.mMoveX = (int) (dx / dist * speed);
 				f.mMoveY = (int) (dy / dist * speed * 0.5f);
 
@@ -742,7 +766,8 @@ public class PlayState extends State {
 					f.setNonceState(wanted);
 				}
 				// Override velocity: flee from player
-				float speed = Math.max(Math.abs(f.mMoveX), 4f) * 1.8f;
+				float baseFlee = 3f + f.mSize * 2f;
+				float speed = baseFlee * 1.8f;
 				f.mMoveX = (int) (-dx / dist * speed);
 				f.mMoveY = (int) (-dy / dist * speed * 0.3f);
 			}
@@ -845,6 +870,13 @@ public class PlayState extends State {
 		int dx = x1 - x2;
 		int dy = y1 - y2;
 		return Math.sqrt(dx * dx + dy * dy);
+	}
+
+	static String formatTime(float seconds) {
+		int total = (int) seconds;
+		int min = total / 60;
+		int sec = total % 60;
+		return min > 0 ? min + "分" + sec + "秒" : sec + "秒";
 	}
 
 	boolean isRoundFinished() {

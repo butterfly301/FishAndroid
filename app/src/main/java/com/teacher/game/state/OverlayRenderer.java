@@ -14,14 +14,22 @@ final class OverlayRenderer {
 
     // --- Overlay card geometry ---
 
-    static final int OVERLAY_CARD_X = 300;
-    static final int OVERLAY_CARD_Y = 180;
-    static final int OVERLAY_CARD_W = 680;
-    static final int OVERLAY_CARD_H = 320;
+    static final int OVERLAY_CARD_X = 240;
+    static final int OVERLAY_CARD_Y = 140;
+    static final int OVERLAY_CARD_W = 800;
+    static final int OVERLAY_CARD_H = 540;
     static final int OVERLAY_BUTTON_W = 180;
     static final int OVERLAY_BUTTON_H = 64;
     static final int OVERLAY_BUTTON_GAP = 18;
-    static final int OVERLAY_BUTTON_Y = 376;
+    static final int OVERLAY_BUTTON_Y = 560;
+
+    // --- Stats panel geometry (inside card) ---
+
+    private static final int STATS_PANEL_X = OVERLAY_CARD_X + 40;
+    private static final int STATS_PANEL_Y = 300;
+    private static final int STATS_PANEL_W = OVERLAY_CARD_W - 80;
+    private static final int STATS_ROW_H = 44;
+    private static final int STATS_ROW_START_Y = STATS_PANEL_Y + 28;
 
     private OverlayRenderer() {
         // utility class
@@ -38,10 +46,12 @@ final class OverlayRenderer {
         drawOverlayButtons(g, new String[]{"继续游戏", "重新开始", "返回菜单"});
     }
 
-    static void drawRoundEndOverlay(Painter g, String title, String subtitle, String[] buttonLabels) {
+    static void drawRoundEndOverlay(Painter g, String title, String subtitle,
+                                    String[] statsData, String[] buttonLabels) {
         g.setColor(Color.argb(168, 0, 0, 0));
         g.fillRect(0, 0, GameMainActivity.GAME_WIDTH, GameMainActivity.GAME_HEIGHT);
         drawOverlayCard(g, title, subtitle);
+        drawStatsPanel(g, statsData);
         drawOverlayButtons(g, buttonLabels);
     }
 
@@ -53,7 +63,7 @@ final class OverlayRenderer {
         g.setColor(Color.argb(228, 8, 37, 74));
         g.fillRoundRect(OVERLAY_CARD_X, OVERLAY_CARD_Y, OVERLAY_CARD_W, OVERLAY_CARD_H, 34);
         g.setColor(Color.argb(120, 255, 255, 255));
-        g.fillRoundRect(OVERLAY_CARD_X + 16, OVERLAY_CARD_Y + 16, OVERLAY_CARD_W - 32, 96, 28);
+        g.fillRoundRect(OVERLAY_CARD_X + 20, OVERLAY_CARD_Y + 16, OVERLAY_CARD_W - 40, 96, 28);
 
         g.setFont(Typeface.DEFAULT_BOLD, 44);
         g.setColor(Color.WHITE);
@@ -61,7 +71,38 @@ final class OverlayRenderer {
 
         g.setFont(Typeface.SANS_SERIF, 24);
         g.setColor(Color.argb(255, 223, 241, 255));
-        drawCenteredText(g, subtitle, OVERLAY_CARD_X, OVERLAY_CARD_W, OVERLAY_CARD_Y + 156);
+        drawCenteredText(g, subtitle, OVERLAY_CARD_X, OVERLAY_CARD_W, OVERLAY_CARD_Y + 148);
+    }
+
+    // ================================================================
+    //  Stats panel
+    // ================================================================
+
+    private static void drawStatsPanel(Painter g, String[] stats) {
+        if (stats == null || stats.length == 0) {
+            return;
+        }
+
+        // Panel background
+        int panelH = stats.length * STATS_ROW_H + 36;
+        g.setColor(Color.argb(80, 0, 0, 0));
+        g.fillRoundRect(STATS_PANEL_X, STATS_PANEL_Y, STATS_PANEL_W, panelH, 20);
+
+        // Each stat on its own row, left-aligned
+        g.setFont(Typeface.SANS_SERIF, 26);
+        for (int i = 0; i < stats.length; i++) {
+            int y = STATS_ROW_START_Y + i * STATS_ROW_H;
+
+            // Alternating row tint
+            if (i % 2 == 0) {
+                g.setColor(Color.argb(25, 255, 255, 255));
+                g.fillRoundRect(STATS_PANEL_X + 12, y - 6,
+                        STATS_PANEL_W - 24, STATS_ROW_H - 4, 8);
+            }
+
+            g.setColor(Color.argb(255, 229, 245, 255));
+            g.drawString(stats[i], STATS_PANEL_X + 28, y + 22);
+        }
     }
 
     // ================================================================

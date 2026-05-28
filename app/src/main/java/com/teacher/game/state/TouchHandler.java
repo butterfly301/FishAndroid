@@ -19,7 +19,7 @@ public class TouchHandler {
     private static final int OVERLAY_BUTTON_W = 180;
     private static final int OVERLAY_BUTTON_H = 64;
     private static final int OVERLAY_BUTTON_GAP = 18;
-    private static final int OVERLAY_BUTTON_Y = 376;
+    private static final int OVERLAY_BUTTON_Y = 560;
 
     // --- Pause button ---
     private static final int PAUSE_BTN_X = 1182;
