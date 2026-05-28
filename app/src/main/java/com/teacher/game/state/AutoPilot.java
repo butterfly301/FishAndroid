@@ -94,9 +94,9 @@ public class AutoPilot {
         mTargetLockTime += effectiveDelta;
         mPowerUpLockTime += effectiveDelta;
 
-        if (mDecisionTimer < 0.10f) {
-            return;
-        }
+		if (mDecisionTimer < GameplayTuning.AUTOPILOT_DECISION_INTERVAL) {
+			return;
+		}
         mDecisionTimer = 0;
 
         int myCenterX = myFish.getX() + myFish.getWidth() / 2;
@@ -219,8 +219,8 @@ public class AutoPilot {
             // Proportional approach vector: move at the correct angle toward the target.
             // Speed scales with distance so the fish slows down when close,
             // preventing overshoot-and-oscillate (the "hovering" bug).
-            float maxSpeed = 160f;
-            float stopRadius = 18f;
+			float maxSpeed = GameplayTuning.AUTOPILOT_HARDRAM_MAX_SPEED;
+			float stopRadius = GameplayTuning.AUTOPILOT_HARDRAM_STOP_RADIUS;
             double dist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
             if (dist < stopRadius) {
                 desiredX = 0;
@@ -233,11 +233,11 @@ public class AutoPilot {
                 desiredX = (int) (targetDx / dist * speed);
                 desiredY = (int) (targetDy / dist * speed);
                 // Clamp to physical control limits
-                if (desiredX > 160) desiredX = 160;
-                else if (desiredX < -160) desiredX = -160;
-                if (desiredY > 140) desiredY = 140;
-                else if (desiredY < -140) desiredY = -140;
-            }
+				if (desiredX > GameplayTuning.AUTOPILOT_HARDRAM_MAX_X) desiredX = GameplayTuning.AUTOPILOT_HARDRAM_MAX_X;
+				else if (desiredX < -GameplayTuning.AUTOPILOT_HARDRAM_MAX_X) desiredX = -GameplayTuning.AUTOPILOT_HARDRAM_MAX_X;
+				if (desiredY > GameplayTuning.AUTOPILOT_HARDRAM_MAX_Y) desiredY = GameplayTuning.AUTOPILOT_HARDRAM_MAX_Y;
+				else if (desiredY < -GameplayTuning.AUTOPILOT_HARDRAM_MAX_Y) desiredY = -GameplayTuning.AUTOPILOT_HARDRAM_MAX_Y;
+			}
             myFish.movePress(desiredX, desiredY);
             return;
         }
@@ -266,7 +266,7 @@ public class AutoPilot {
                 int targetCenterX = predicted[0];
                 int targetCenterY = predicted[1];
                 double distance = distance(myCenterX, myCenterY, targetCenterX, targetCenterY);
-                if (distance < 260 || mTargetLockTime < 0.8f) {
+				if (distance < 260 || mTargetLockTime < GameplayTuning.AUTOPILOT_TARGET_LOCK_SECONDS) {
                     return mTargetFish;
                 }
             }
@@ -286,7 +286,7 @@ public class AutoPilot {
                 int targetCenterX = mTargetPowerUp.getX() + mTargetPowerUp.getWidth() / 2;
                 int targetCenterY = mTargetPowerUp.getY() + mTargetPowerUp.getHeight() / 2;
                 double distance = distance(myCenterX, myCenterY, targetCenterX, targetCenterY);
-                if (distance < 320 || mPowerUpLockTime < 0.8f) {
+				if (distance < 320 || mPowerUpLockTime < GameplayTuning.AUTOPILOT_TARGET_LOCK_SECONDS) {
                     return mTargetPowerUp;
                 }
             }

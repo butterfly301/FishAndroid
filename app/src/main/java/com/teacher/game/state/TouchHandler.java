@@ -14,13 +14,6 @@ import android.view.MotionEvent;
  */
 public class TouchHandler {
 
-    // --- Overlay constants shared with OverlayRenderer ---
-    // Keep local copies to avoid circular intra-package dependency on OverlayRenderer
-    private static final int OVERLAY_BUTTON_W = 180;
-    private static final int OVERLAY_BUTTON_H = 64;
-    private static final int OVERLAY_BUTTON_GAP = 18;
-    private static final int OVERLAY_BUTTON_Y = 560;
-
     // --- Pause button ---
     private static final int PAUSE_BTN_X = 1182;
     private static final int PAUSE_BTN_Y = 26;
@@ -194,20 +187,20 @@ public class TouchHandler {
         if (mState.mGamePaused) {
             // Resume
             if (isPointInside(scaleX, scaleY,
-                    getOverlayButtonX(3, 0), OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H)) {
+                    getOverlayButtonX(3, 0), OverlayLayout.BUTTON_Y, OverlayLayout.BUTTON_W, OverlayLayout.BUTTON_H)) {
                 mState.mGamePaused = false;
                 Assets.playMusic("backgoundsound.mid", true);
                 return true;
             }
             // Restart
             if (isPointInside(scaleX, scaleY,
-                    getOverlayButtonX(3, 1), OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H)) {
+                    getOverlayButtonX(3, 1), OverlayLayout.BUTTON_Y, OverlayLayout.BUTTON_W, OverlayLayout.BUTTON_H)) {
                 mState.restartGame();
                 return true;
             }
             // Return menu
             if (isPointInside(scaleX, scaleY,
-                    getOverlayButtonX(3, 2), OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H)) {
+                    getOverlayButtonX(3, 2), OverlayLayout.BUTTON_Y, OverlayLayout.BUTTON_W, OverlayLayout.BUTTON_H)) {
                 mState.returnToMenu();
                 return true;
             }
@@ -220,7 +213,7 @@ public class TouchHandler {
             String[] labels = mState.getRoundEndButtonLabels();
             for (int i = 0; i < labels.length; i++) {
                 if (isPointInside(scaleX, scaleY,
-                        getOverlayButtonX(labels.length, i), OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H)) {
+                        getOverlayButtonX(labels.length, i), OverlayLayout.BUTTON_Y, OverlayLayout.BUTTON_W, OverlayLayout.BUTTON_H)) {
                     ModeRules.RoundEndAction action = mState.mModeRules.resolveRoundEndAction(i, cleared, hasNext);
                     mState.handleRoundEndAction(action);
                     return true;
@@ -240,9 +233,8 @@ public class TouchHandler {
         return x >= left && x <= left + width && y >= top && y <= top + height;
     }
 
-    /** Mirror of OverlayRenderer.getOverlayButtonX so TouchHandler doesn't depend on it. */
     private int getOverlayButtonX(int buttonCount, int index) {
-        int totalWidth = buttonCount * OVERLAY_BUTTON_W + (buttonCount - 1) * OVERLAY_BUTTON_GAP;
-        return (GameMainActivity.GAME_WIDTH - totalWidth) / 2 + index * (OVERLAY_BUTTON_W + OVERLAY_BUTTON_GAP);
+        int totalWidth = buttonCount * OverlayLayout.BUTTON_W + (buttonCount - 1) * OverlayLayout.BUTTON_GAP;
+        return (GameMainActivity.GAME_WIDTH - totalWidth) / 2 + index * (OverlayLayout.BUTTON_W + OverlayLayout.BUTTON_GAP);
     }
 }

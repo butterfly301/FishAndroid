@@ -37,58 +37,31 @@ public class CollisionManager {
             if (mState.isRoundFinished()) {
                 break;
             }
-            if (f.collidesWith(mState.mMyFish, false)) {
+            boolean headCollision = f.collidesWith(mState.mMyFish, false);
+            boolean bodyFallback = f.mSize >= mState.mMyFish.mSize && bodyOverlap(f, mState.mMyFish);
+            if (headCollision || bodyFallback) {
 
-                if (f.mSize >= mState.mMyFish.mSize) {
-                    // Shield blocks one hit
-                    if (mState.mMyFish.mHasShield) {
-                        mState.mMyFish.mHasShield = false;
-                        f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-                        continue;
-                    }
-
-                    if (f.mNonceState == Fish.SWIML || f.mNonceState == Fish.SWERVE_L) {
-                        f.setNonceState(Fish.EATL);
-                    } else if (f.mNonceState == Fish.SWIMR || f.mNonceState == Fish.SWERVE_R) {
-                        f.setNonceState(Fish.EATR);
-                    }
-                    mState.mLife--;
-                    mState.resetCombo();
-                    if (mState.mLife > 0) {
-                        mState.mMyFish.setNonceState(Fish.DIE);
-                    }
-
-                    mState.mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-                    break;
+				if (f.mSize >= mState.mMyFish.mSize) {
+					// Shield blocks one hit
+					if (mState.mMyFish.mHasShield) {
+						mState.mMyFish.mHasShield = false;
+						f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+						continue;
+					}
+					mState.onPlayerDamaged(f);
+					break;
 
 				} else {
 					// Player eats the smaller fish
-					mState.mFishEaten++;
-					if (mState.mMyFish.mNonceState == Fish.SWIML || mState.mMyFish.mNonceState == Fish.SWERVE_L) {
-						mState.mMyFish.setNonceState(Fish.EATL);
-					} else if (mState.mMyFish.mNonceState == Fish.SWIMR || mState.mMyFish.mNonceState == Fish.SWERVE_R) {
-						mState.mMyFish.setNonceState(Fish.EATR);
+					int points = (f.mSize + 1) * 20;
+					if (f.mBehavior == Fish.Behavior.FLEE) points = points * 3 / 2;
+					float comboMult = mState.registerEat();
+					points = (int) (points * comboMult);
+					mState.onPlayerEatFish(f, points);
+					if (mState.didClearLevel()) {
+						break;
 					}
-
-					if (mState.mModeRules.canGainScore(mState.mScore, mState.mLevelConfig.targetScore)) {
-                        int points = (f.mSize + 1) * 20;
-                        if (f.mBehavior == Fish.Behavior.FLEE) points = points * 3 / 2;
-                        float comboMult = mState.registerEat();
-                        points = (int) (points * comboMult);
-                        mState.addScore(points);
-                        mState.mCompanionCharge = Math.min(COMPANION_CHARGE_TARGET, mState.mCompanionCharge + 1);
-                        mState.spawnCompanionIfReady();
-                    }
-                    if (mState.didClearLevel()) {
-                        mState.mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-                        break;
-                    }
-                    else if (mState.mScore >= 70)
-                        mState.mMyFish.setSize(Fish.SUPER);
-                    else if (mState.mScore >= 30)
-                        mState.mMyFish.setSize(Fish.BIG);
-                    f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-                }
+				}
 
             }
         }
@@ -110,11 +83,8 @@ public class CollisionManager {
 				if (f.mSize < mState.mMyFish.mSize) {
 					int points = (f.mSize + 1) * 10;
 					if (f.mBehavior == Fish.Behavior.FLEE) points = points * 3 / 2;
-					mState.addScore(points);
-					mState.mCompanionAssists++;
-					companion.recordAssistEat();
-                    f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-                }
+					mState.onCompanionEatFish(companion, f, points);
+				}
             }
         }
     }
@@ -125,11 +95,10 @@ public class CollisionManager {
 
     public void checkPowerUpCollision() {
         Iterator<PowerUp> it = mState.mPowerUps.iterator();
-        while (it.hasNext()) {
-            PowerUp p = it.next();
+		while (it.hasNext()) {
+			PowerUp p = it.next();
 			if (mState.mMyFish.collidesWith(p, false)) {
-				mState.mPowerUpsCollected++;
-				applyPowerUp(p);
+				mState.onCollectPowerUp(p);
 				if (mState.mAutoPilot != null) {
 					mState.mAutoPilot.onPowerUpEaten(p);
 				}
@@ -139,38 +108,9 @@ public class CollisionManager {
         }
     }
 
-    // ================================================================
-    //  Power-up application
-    // ================================================================
-
-    private void applyPowerUp(PowerUp p) {
-        switch (p.type) {
-            case SPEED:
-                mState.mSpeedTimer = PowerUpType.SPEED.duration;
-                mState.mMyFish.mSpeedMultiplier = 2.0f;
-                break;
-            case SHIELD:
-                mState.mMyFish.mHasShield = true;
-                break;
-            case FREEZE:
-                mState.mFreezeTimer = PowerUpType.FREEZE.duration;
-                break;
-            case BOMB:
-                for (Fish f : mState.mOtherFish) {
-                    if (f.mSize >= mState.mMyFish.mSize && isOnScreen(f)) {
-                        f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-                    }
-                }
-                break;
-            case LURE:
-                mState.mLureTimer = PowerUpType.LURE.duration;
-                break;
-        }
-    }
-
-    // ================================================================
-    //  Utility
-    // ================================================================
+	// ================================================================
+	//  Utility
+	// ================================================================
 
     private boolean isOnScreen(Sprite s) {
         return s.getX() > -s.getWidth()
@@ -178,4 +118,24 @@ public class CollisionManager {
                 && s.getY() > -s.getHeight()
                 && s.getY() < GameMainActivity.GAME_HEIGHT;
     }
+
+	private boolean bodyOverlap(Sprite a, Sprite b) {
+		int aInsetX = a.getWidth() / 5;
+		int aInsetY = a.getHeight() / 5;
+		int bInsetX = b.getWidth() / 5;
+		int bInsetY = b.getHeight() / 5;
+
+		int aLeft = a.getX() + aInsetX;
+		int aTop = a.getY() + aInsetY;
+		int aRight = a.getX() + a.getWidth() - aInsetX;
+		int aBottom = a.getY() + a.getHeight() - aInsetY;
+
+		int bLeft = b.getX() + bInsetX;
+		int bTop = b.getY() + bInsetY;
+		int bRight = b.getX() + b.getWidth() - bInsetX;
+		int bBottom = b.getY() + b.getHeight() - bInsetY;
+
+		return aLeft < bRight && aRight > bLeft
+				&& aTop < bBottom && aBottom > bTop;
+	}
 }

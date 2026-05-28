@@ -62,7 +62,10 @@ public class PlayState extends State {
 	private int mEndlessHighScore;
 	private boolean mEndlessMode;
 
-	private static final int IN_R = 36, IN_45 = 25, OUT_W = 72, IN_W = 36;
+	private static final int IN_R = GameplayTuning.JOYSTICK_INNER_RADIUS;
+	private static final int IN_45 = GameplayTuning.JOYSTICK_INNER_DIAGONAL;
+	private static final int OUT_W = GameplayTuning.JOYSTICK_OUTER_RADIUS;
+	private static final int IN_W = GameplayTuning.JOYSTICK_INNER_HALF;
 	private static final int HUD_LEFT = 20;
 	private static final int HUD_TOP = 18;
 	private static final int MAX_POWERUPS = 3;
@@ -70,19 +73,9 @@ public class PlayState extends State {
 
 	// ---------- Combo system ----------
 
-	private static final float COMBO_WINDOW = 2.0f;
-	private static final int MAX_COMBO = 5;
-
 	int mCombo;
 	private float mComboTimer;
-	int mComboPeak;
-
-	// ---------- Round-end statistics ----------
-
-	int mFishEaten;
-	int mPowerUpsCollected;
-	int mCompanionAssists;
-	float mSurvivalTime;
+	RoundStats mStats;
 
 	// Drawing constants shared with TouchHandler (used by drawDebugButton/Panel and drawHud)
 	private static final int PAUSE_BTN_X = 1182;
@@ -126,11 +119,7 @@ public class PlayState extends State {
 		mScore = 0;
 		mCombo = 0;
 		mComboTimer = 0;
-		mComboPeak = 0;
-		mFishEaten = 0;
-		mPowerUpsCollected = 0;
-		mCompanionAssists = 0;
-		mSurvivalTime = 0;
+		mStats = new RoundStats();
 		mHighScore = GameMainActivity.getHighScore();
 		mEndlessHighScore = GameMainActivity.getEndlessHighScore();
 		mLevelConfig = LevelRepository.getLevel(mLevelIndex);
@@ -201,7 +190,7 @@ public class PlayState extends State {
 		if (mGamePaused || isRoundFinished())
 			return;
 		float effectiveDelta = delta * mDebugGameSpeed;
-		mSurvivalTime += effectiveDelta;
+		mStats.survivalTime += effectiveDelta;
 		// Power-up timers
 		if (mSpeedTimer > 0) {
 			mSpeedTimer -= effectiveDelta;
@@ -409,18 +398,10 @@ public class PlayState extends State {
 		}else if (isRoundFinished()) {
 			boolean cleared = didClearLevel();
 			boolean hasNext = hasNextLevel();
-			String subtitle = mModeRules.getRoundEndSubtitle(
-					mScore, mLevelConfig.index + 1, cleared, hasNext);
+			String subtitle = RoundTextFormatter.buildRoundEndSubtitle(
+					mModeRules, mScore, mLevelConfig.index + 1, cleared, hasNext, mStats);
 
-			// Build stats panel data
-			String[] stats = new String[] {
-				"得分    " + mScore,
-				"吃掉鱼  " + mFishEaten + " 条",
-				"最高连击 x" + mComboPeak,
-				"收集道具 " + mPowerUpsCollected + " 个",
-				"同伴助攻 " + mCompanionAssists + " 条",
-				"存活时间 " + formatTime(mSurvivalTime)
-			};
+			String[] stats = RoundTextFormatter.buildRoundEndStats(mScore, mStats);
 
 			OverlayRenderer.drawRoundEndOverlay(g,
 					mModeRules.getRoundEndTitle(cleared, hasNext),
@@ -744,7 +725,7 @@ public class PlayState extends State {
 			double dist = Math.sqrt(dx * dx + dy * dy);
 
 			if (f.mBehavior == Fish.Behavior.TRACK
-					&& f.mSize >= mMyFish.mSize && dist < 420) {
+					&& f.mSize >= mMyFish.mSize && dist < GameplayTuning.TRACK_DISTANCE) {
 				// Face the player
 				byte wanted = dx > 0 ? Fish.SWIMR : Fish.SWIML;
 				if (f.mNonceState != wanted) {
@@ -754,12 +735,12 @@ public class PlayState extends State {
 				// Use fixed per-size base speed, NOT f.mMoveX,
 				// to prevent exponential blowup (mMoveX cascading).
 				float baseTrack = 6f + f.mSize * 4f;   // SMALL=10,NORMAL=14,BIG=18,SUPER=22
-				float speed = baseTrack * 2.5f;
+				float speed = baseTrack * GameplayTuning.TRACK_MULTIPLIER;
 				f.mMoveX = (int) (dx / dist * speed);
 				f.mMoveY = (int) (dy / dist * speed * 0.5f);
 
 			} else if (f.mBehavior == Fish.Behavior.FLEE
-					&& f.mSize < mMyFish.mSize && dist < 350) {
+					&& f.mSize < mMyFish.mSize && dist < GameplayTuning.FLEE_DISTANCE) {
 				// Face away from the player
 				byte wanted = dx > 0 ? Fish.SWIML : Fish.SWIMR;
 				if (f.mNonceState != wanted) {
@@ -767,7 +748,7 @@ public class PlayState extends State {
 				}
 				// Override velocity: flee from player
 				float baseFlee = 3f + f.mSize * 2f;
-				float speed = baseFlee * 1.8f;
+				float speed = baseFlee * GameplayTuning.FLEE_MULTIPLIER;
 				f.mMoveX = (int) (-dx / dist * speed);
 				f.mMoveY = (int) (-dy / dist * speed * 0.3f);
 			}
@@ -784,12 +765,12 @@ public class PlayState extends State {
 	 */
 	float registerEat() {
 		mCombo++;
-		if (mCombo > MAX_COMBO) {
-			mCombo = MAX_COMBO;
+		if (mCombo > GameplayTuning.MAX_COMBO) {
+			mCombo = GameplayTuning.MAX_COMBO;
 		}
-		mComboTimer = COMBO_WINDOW;
-		if (mCombo > mComboPeak) {
-			mComboPeak = mCombo;
+		mComboTimer = GameplayTuning.COMBO_WINDOW_SECONDS;
+		if (mCombo > mStats.comboPeak) {
+			mStats.comboPeak = mCombo;
 		}
 		return getComboMultiplier();
 	}
@@ -817,6 +798,77 @@ public class PlayState extends State {
 		} else if (mScore > mHighScore) {
 			mHighScore = mScore;
 			GameMainActivity.saveHighScore(mHighScore);
+		}
+	}
+
+	void onPlayerDamaged(Fish attacker) {
+		if (attacker.mNonceState == Fish.SWIML || attacker.mNonceState == Fish.SWERVE_L) {
+			attacker.setNonceState(Fish.EATL);
+		} else if (attacker.mNonceState == Fish.SWIMR || attacker.mNonceState == Fish.SWERVE_R) {
+			attacker.setNonceState(Fish.EATR);
+		}
+		mLife--;
+		resetCombo();
+		if (mLife > 0) {
+			mMyFish.setNonceState(Fish.DIE);
+		}
+		mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+	}
+
+	void onPlayerEatFish(Fish fish, int points) {
+		mStats.fishEaten++;
+		if (mMyFish.mNonceState == Fish.SWIML || mMyFish.mNonceState == Fish.SWERVE_L) {
+			mMyFish.setNonceState(Fish.EATL);
+		} else if (mMyFish.mNonceState == Fish.SWIMR || mMyFish.mNonceState == Fish.SWERVE_R) {
+			mMyFish.setNonceState(Fish.EATR);
+		}
+
+		if (mModeRules.canGainScore(mScore, mLevelConfig.targetScore)) {
+			addScore(points);
+			mCompanionCharge = Math.min(COMPANION_CHARGE_TARGET, mCompanionCharge + 1);
+			spawnCompanionIfReady();
+		}
+
+		if (didClearLevel()) {
+			mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+		} else if (mScore >= 70) {
+			mMyFish.setSize(Fish.SUPER);
+		} else if (mScore >= 30) {
+			mMyFish.setSize(Fish.BIG);
+		}
+		fish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+	}
+
+	void onCompanionEatFish(CompanionFish companion, Fish fish, int points) {
+		addScore(points);
+		mStats.companionAssists++;
+		companion.recordAssistEat();
+		fish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+	}
+
+	void onCollectPowerUp(PowerUp powerUp) {
+		mStats.powerUpsCollected++;
+		switch (powerUp.type) {
+			case SPEED:
+				mSpeedTimer = PowerUpType.SPEED.duration;
+				mMyFish.mSpeedMultiplier = 2.0f;
+				break;
+			case SHIELD:
+				mMyFish.mHasShield = true;
+				break;
+			case FREEZE:
+				mFreezeTimer = PowerUpType.FREEZE.duration;
+				break;
+			case BOMB:
+				for (Fish f : mOtherFish) {
+					if (f.mSize >= mMyFish.mSize && isOnScreen(f)) {
+						f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+					}
+				}
+				break;
+			case LURE:
+				mLureTimer = PowerUpType.LURE.duration;
+				break;
 		}
 	}
 
@@ -870,13 +922,6 @@ public class PlayState extends State {
 		int dx = x1 - x2;
 		int dy = y1 - y2;
 		return Math.sqrt(dx * dx + dy * dy);
-	}
-
-	static String formatTime(float seconds) {
-		int total = (int) seconds;
-		int min = total / 60;
-		int sec = total % 60;
-		return min > 0 ? min + "分" + sec + "秒" : sec + "秒";
 	}
 
 	boolean isRoundFinished() {

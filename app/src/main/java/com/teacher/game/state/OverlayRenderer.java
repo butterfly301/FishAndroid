@@ -14,20 +14,11 @@ final class OverlayRenderer {
 
     // --- Overlay card geometry ---
 
-    static final int OVERLAY_CARD_X = 240;
-    static final int OVERLAY_CARD_Y = 140;
-    static final int OVERLAY_CARD_W = 800;
-    static final int OVERLAY_CARD_H = 540;
-    static final int OVERLAY_BUTTON_W = 180;
-    static final int OVERLAY_BUTTON_H = 64;
-    static final int OVERLAY_BUTTON_GAP = 18;
-    static final int OVERLAY_BUTTON_Y = 560;
-
     // --- Stats panel geometry (inside card) ---
 
-    private static final int STATS_PANEL_X = OVERLAY_CARD_X + 40;
+    private static final int STATS_PANEL_X = OverlayLayout.CARD_X + 40;
     private static final int STATS_PANEL_Y = 300;
-    private static final int STATS_PANEL_W = OVERLAY_CARD_W - 80;
+    private static final int STATS_PANEL_W = OverlayLayout.CARD_W - 80;
     private static final int STATS_ROW_H = 44;
     private static final int STATS_ROW_START_Y = STATS_PANEL_Y + 28;
 
@@ -61,17 +52,17 @@ final class OverlayRenderer {
 
     static void drawOverlayCard(Painter g, String title, String subtitle) {
         g.setColor(Color.argb(228, 8, 37, 74));
-        g.fillRoundRect(OVERLAY_CARD_X, OVERLAY_CARD_Y, OVERLAY_CARD_W, OVERLAY_CARD_H, 34);
+        g.fillRoundRect(OverlayLayout.CARD_X, OverlayLayout.CARD_Y, OverlayLayout.CARD_W, OverlayLayout.CARD_H, 34);
         g.setColor(Color.argb(120, 255, 255, 255));
-        g.fillRoundRect(OVERLAY_CARD_X + 20, OVERLAY_CARD_Y + 16, OVERLAY_CARD_W - 40, 96, 28);
+        g.fillRoundRect(OverlayLayout.CARD_X + 20, OverlayLayout.CARD_Y + 16, OverlayLayout.CARD_W - 40, 96, 28);
 
         g.setFont(Typeface.DEFAULT_BOLD, 44);
         g.setColor(Color.WHITE);
-        drawCenteredText(g, title, OVERLAY_CARD_X, OVERLAY_CARD_W, OVERLAY_CARD_Y + 96);
+        drawCenteredText(g, title, OverlayLayout.CARD_X, OverlayLayout.CARD_W, OverlayLayout.CARD_Y + 96);
 
         g.setFont(Typeface.SANS_SERIF, 24);
         g.setColor(Color.argb(255, 223, 241, 255));
-        drawCenteredText(g, subtitle, OVERLAY_CARD_X, OVERLAY_CARD_W, OVERLAY_CARD_Y + 148);
+        drawCenteredText(g, subtitle, OverlayLayout.CARD_X, OverlayLayout.CARD_W, OverlayLayout.CARD_Y + 148);
     }
 
     // ================================================================
@@ -123,19 +114,19 @@ final class OverlayRenderer {
             }
 
             g.setColor(Color.argb(100, 0, 0, 0));
-            g.fillRoundRect(x + 4, OVERLAY_BUTTON_Y + 4, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H, 18);
+            g.fillRoundRect(x + 4, OverlayLayout.BUTTON_Y + 4, OverlayLayout.BUTTON_W, OverlayLayout.BUTTON_H, 18);
             g.setColor(color);
-            g.fillRoundRect(x, OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H, 18);
+            g.fillRoundRect(x, OverlayLayout.BUTTON_Y, OverlayLayout.BUTTON_W, OverlayLayout.BUTTON_H, 18);
 
             g.setFont(Typeface.DEFAULT_BOLD, 26);
             g.setColor(Color.rgb(14, 52, 88));
-            drawCenteredText(g, labels[i], x, OVERLAY_BUTTON_W, OVERLAY_BUTTON_Y + 41);
+            drawCenteredText(g, labels[i], x, OverlayLayout.BUTTON_W, OverlayLayout.BUTTON_Y + 41);
         }
     }
 
     static int getOverlayButtonX(int buttonCount, int index) {
-        int totalWidth = buttonCount * OVERLAY_BUTTON_W + (buttonCount - 1) * OVERLAY_BUTTON_GAP;
-        return (GameMainActivity.GAME_WIDTH - totalWidth) / 2 + index * (OVERLAY_BUTTON_W + OVERLAY_BUTTON_GAP);
+        int totalWidth = buttonCount * OverlayLayout.BUTTON_W + (buttonCount - 1) * OverlayLayout.BUTTON_GAP;
+        return (GameMainActivity.GAME_WIDTH - totalWidth) / 2 + index * (OverlayLayout.BUTTON_W + OverlayLayout.BUTTON_GAP);
     }
 
     // ================================================================
