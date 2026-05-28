@@ -15,11 +15,19 @@ public class Fish extends Sprite {
 	public static final byte SWIMR = 0, SWIML = 1, EATR = 2, EATL = 3,
 			SWERVE_R = 4, SWERVE_L = 5, DIE = 6;
 
+	public enum Behavior {
+		PATROL,   // Default: swim left-right
+		TRACK,    // Chase player when close (size >= player)
+		FLEE      // Run from player when close (size < player)
+	}
+
 	public byte mSize;
 
 	public byte mNonceState;
 
 	public int mMoveX, mMoveY;
+
+	public Behavior mBehavior = Behavior.PATROL;
 	
 	private int mSpeedBonus;
 
@@ -49,6 +57,8 @@ public class Fish extends Sprite {
 				break;
 		}
 		mNonceState = DIE;
+		mMoveX = 0;
+		mMoveY = 0;
 	}
 
 	public void setSpeedBonus(int speedBonus) {

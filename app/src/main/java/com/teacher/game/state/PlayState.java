@@ -18,55 +18,76 @@ import com.teacher.game.model.CompanionFish;
 import com.teacher.game.model.PowerUp;
 import com.teacher.game.model.PowerUpType;
 
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.MotionEvent;
 
 public class PlayState extends State {
 
-	private enum AutoPilotState {
-		ESCAPE_BOUNDARY,
-		EVADE_THREAT,
-		ALIGN_TARGET,
-		CHASE_TARGET,
-		CRUISE
-	}
+	// ---------- package-private for extracted components ----------
 
-	private Sprite mFloatGrassR, mFloatGrassL;
+	Sprite mFloatGrassR, mFloatGrassL;
+	Sprite mAirBubbleR, mAirBubbleL;
+	LayerManager mLayerManager;
+	ArrayList<Fish> mOtherFish;
+	MyFish mMyFish;
+	ArrayList<PowerUp> mPowerUps;
+	ArrayList<CompanionFish> mCompanionFishList;
+	ModeRules mModeRules;
+	LevelConfig mLevelConfig;
+	int mLife;
+	int mScore;
+	int mLevelIndex;
+	int mCompanionCharge;
+	float mSpeedTimer;
+	float mFreezeTimer;
+	float mLureTimer;
+	boolean mAutoMode;
+	boolean mGamePaused;
+	boolean mDebugPanelVisible;
+	float mDebugGameSpeed;
 
-	private Sprite mAirBubbleR, mAirBubbleL;
+	// ---------- components (created in init()) ----------
+
+	AutoPilot mAutoPilot;
+	TouchHandler mTouchHandler;
+	CollisionManager mCollisionManager;
+
+	// ---------- private helpers ----------
 
 	private float mFlushTime;
-
-	private LayerManager mLayerManager;
-
 	private ArrayList<Sprite> mAirBubbleList;
-
-	private ArrayList<Fish> mOtherFish;
-
-	private MyFish mMyFish;
+	private int mHighScore;
+	private int mEndlessHighScore;
+	private boolean mEndlessMode;
 
 	private static final int IN_R = 24, IN_45 = 17, OUT_W = 48, IN_W = 24;
 	private static final int HUD_LEFT = 20;
 	private static final int HUD_TOP = 18;
+	private static final int MAX_POWERUPS = 3;
+	static final int COMPANION_CHARGE_TARGET = 6;
+
+	// ---------- Combo system ----------
+
+	private static final float COMBO_WINDOW = 2.0f;
+	private static final int MAX_COMBO = 5;
+
+	int mCombo;
+	private float mComboTimer;
+	int mComboPeak;
+
+	// Drawing constants shared with TouchHandler (used by drawDebugButton/Panel and drawHud)
 	private static final int PAUSE_BTN_X = 1182;
 	private static final int PAUSE_BTN_Y = 26;
 	private static final int PAUSE_BTN_SIZE = 48;
-	private static final int OVERLAY_CARD_X = 300;
-	private static final int OVERLAY_CARD_Y = 180;
-	private static final int OVERLAY_CARD_W = 680;
-	private static final int OVERLAY_CARD_H = 320;
-	private static final int OVERLAY_BUTTON_W = 180;
-	private static final int OVERLAY_BUTTON_H = 64;
-	private static final int OVERLAY_BUTTON_GAP = 18;
-	private static final int OVERLAY_BUTTON_Y = 376;
 	private static final int DEBUG_BTN_SIZE = 66;
 	private static final int DEBUG_BTN_MARGIN = 22;
-	private static final int DEBUG_PANEL_W = 560;
-	private static final int DEBUG_PANEL_H = 330;
+	private static final int DEBUG_PANEL_W = 640;
+	private static final int DEBUG_PANEL_H = 420;
 	private static final int DEBUG_PANEL_X = GameMainActivity.GAME_WIDTH - DEBUG_PANEL_W - 24;
 	private static final int DEBUG_PANEL_Y = GameMainActivity.GAME_HEIGHT - DEBUG_PANEL_H - 24;
-	private static final int DEBUG_CLOSE_W = 150;
+	private static final int DEBUG_CLOSE_W = 56;
 	private static final int DEBUG_CLOSE_H = 56;
 	private static final int DEBUG_SPEED_DEC_W = 84;
 	private static final int DEBUG_SPEED_DEC_H = 64;
@@ -74,59 +95,6 @@ public class PlayState extends State {
 	private static final int DEBUG_SPEED_INC_H = 64;
 	private static final int DEBUG_SPAWN_W = 400;
 	private static final int DEBUG_SPAWN_H = 72;
-
-	private int mLife;
-
-	private int mScore;
-
-	private int mHighScore;
-	
-	private int mEndlessHighScore;
-	
-	private int mLevelIndex;
-	
-	private LevelConfig mLevelConfig;
-	
-	private boolean mEndlessMode;
-	
-	private boolean mAutoMode;
-	
-	private float mAutoDecisionTimer;
-	
-	private int mAutoInputX;
-	
-	private int mAutoInputY;
-	
-	private Fish mAutoTargetFish;
-
-	private PowerUp mAutoTargetPowerUp;
-	
-	private float mAutoTargetLockTime;
-
-	private float mAutoPowerUpLockTime;
-	
-	private AutoPilotState mAutoPilotState;
-
-	private ArrayList<PowerUp> mPowerUps;
-
-	private float mSpeedTimer;
-
-	private float mFreezeTimer;
-
-	private static final int MAX_POWERUPS = 3;
-
-	private static final int POWERUP_SIZE = 36;
-	private static final int COMPANION_CHARGE_TARGET = 6;
-
-	private boolean mDebugPanelVisible;
-
-	private float mDebugGameSpeed;
-
-	private ArrayList<CompanionFish> mCompanionFishList;
-
-	private int mCompanionCharge;
-
-	private ModeRules mModeRules;
 
 	public PlayState() {
 		this(0, false);
@@ -149,21 +117,20 @@ public class PlayState extends State {
 	public void init() {
 		mLife = 4;
 		mScore = 0;
+		mCombo = 0;
+		mComboTimer = 0;
+		mComboPeak = 0;
 		mHighScore = GameMainActivity.getHighScore();
 		mEndlessHighScore = GameMainActivity.getEndlessHighScore();
 		mLevelConfig = LevelRepository.getLevel(mLevelIndex);
 		mAutoMode = GameMainActivity.isAutoMode();
-		mAutoDecisionTimer = 0;
-		mAutoInputX = 0;
-		mAutoInputY = 0;
-		mAutoTargetFish = null;
-		mAutoTargetPowerUp = null;
-		mAutoTargetLockTime = 0;
-		mAutoPowerUpLockTime = 0;
-		mAutoPilotState = AutoPilotState.CRUISE;
+		mAutoPilot = new AutoPilot();
+		mTouchHandler = new TouchHandler(this);
+		mCollisionManager = new CollisionManager(this);
 		mPowerUps = new ArrayList<PowerUp>();
 		mSpeedTimer = 0;
 		mFreezeTimer = 0;
+		mLureTimer = 0;
 		mDebugPanelVisible = false;
 		mDebugGameSpeed = 1.0f;
 		mCompanionFishList = new ArrayList<CompanionFish>();
@@ -223,12 +190,6 @@ public class PlayState extends State {
 		if (mGamePaused || isRoundFinished())
 			return;
 		float effectiveDelta = delta * mDebugGameSpeed;
-		if (mAutoMode) {
-			mAutoDecisionTimer += effectiveDelta;
-			mAutoTargetLockTime += effectiveDelta;
-			mAutoPowerUpLockTime += effectiveDelta;
-		}
-
 		// Power-up timers
 		if (mSpeedTimer > 0) {
 			mSpeedTimer -= effectiveDelta;
@@ -241,6 +202,37 @@ public class PlayState extends State {
 			mFreezeTimer -= effectiveDelta;
 			if (mFreezeTimer <= 0) {
 				mFreezeTimer = 0;
+			}
+		}
+		if (mLureTimer > 0) {
+			mLureTimer -= effectiveDelta;
+			if (mLureTimer <= 0) {
+				mLureTimer = 0;
+			}
+			// Attract smaller on-screen fish toward the player
+			float strength = 180f; // px/s pull speed
+			int myCx = mMyFish.getX() + mMyFish.getWidth() / 2;
+			int myCy = mMyFish.getY() + mMyFish.getHeight() / 2;
+			for (Fish f : mOtherFish) {
+				if (!isOnScreen(f) || f.mSize >= mMyFish.mSize) {
+					continue;
+				}
+				int dx = myCx - (f.getX() + f.getWidth() / 2);
+				int dy = myCy - (f.getY() + f.getHeight() / 2);
+				double dist = Math.sqrt(dx * dx + dy * dy);
+				if (dist > 0 && dist < 600) {
+					float move = Math.min(strength * effectiveDelta, (float)dist);
+					f.move((int)(dx / dist * move), (int)(dy / dist * move));
+				}
+			}
+		}
+
+		// Combo timer decay
+		if (mComboTimer > 0) {
+			mComboTimer -= effectiveDelta;
+			if (mComboTimer <= 0) {
+				mComboTimer = 0;
+				mCombo = 0;
 			}
 		}
 
@@ -262,6 +254,10 @@ public class PlayState extends State {
 				setAirBubblePosition(s, left, left + 80);
 			}
 
+			// Fish AI must update BEFORE setOtherFishPosition so that
+			// speed changes (TRACK / FLEE) take effect in the same frame,
+			// preventing sudden "teleport" jumps on the next tick.
+			updateFishAI();
 			setOtherFishPosition();
 
 			// Power-up spawning
@@ -281,18 +277,19 @@ public class PlayState extends State {
 				}
 			}
 
-			mMyFish.update();
-			updateCompanion();
-			if (mMyFish.mStartTime > 10) {
-				checkCollides();
-				checkCompanionCollides();
-				checkPowerUpCollision();
-			}
+		mMyFish.update();
+		updateCompanion();
+		if (mMyFish.mStartTime > 10) {
+			mCollisionManager.checkCollides();
+			mCollisionManager.checkCompanionCollides();
+			mCollisionManager.checkPowerUpCollision();
+		}
 		}
 		if (mAutoMode) {
-			updateAutoControl();
-		}else if (mTouchDown) {
-			mMyFish.movePress(mDX, mDY);
+			mAutoPilot.update(effectiveDelta, mMyFish, mOtherFish, mPowerUps,
+					mFreezeTimer, mSpeedTimer, mLureTimer, mMyFish.mHasShield);
+		}else if (mTouchHandler.mTouchDown) {
+			mMyFish.movePress(mTouchHandler.mDX, mTouchHandler.mDY);
 		}
 	}
 
@@ -302,9 +299,10 @@ public class PlayState extends State {
 				continue;
 			}
 			f.update();
-			if (!isOnScreen(f)) {
+		if (!isOnScreen(f)) {
 				f.setSize(randomFishSize());
 				f.setSpeedBonus(mLevelConfig.speedBonus);
+				assignFishBehavior(f);
 				if (RandomNumberGenerator.getRandInt(10) > 5) {
 					f.setPosition(-f.getWidth(),
 							RandomNumberGenerator.getRandIntBetween(GameMainActivity.getPlayTop(),
@@ -358,41 +356,56 @@ public class PlayState extends State {
 		mLayerManager.paint(g.getCanvas(), 0, 0);
 		drawCompanionMarker(g);
 
-		if (mTouchDown) {
-			g.drawImage(Assets.virjoy_outter, mTouchX-OUT_W, mTouchY-OUT_W);
+		if (mTouchHandler.mTouchDown) {
+			g.drawImage(Assets.virjoy_outter, mTouchHandler.mTouchX-OUT_W, mTouchHandler.mTouchY-OUT_W);
 
-			if (mDX == 0 && mDY == 0)
-				g.drawImage(Assets.virjoy_inner, mTouchX-IN_W, mTouchY-IN_W);
-			if (mDX > 0) {
-				if (mDY > 0)
-					g.drawImage(Assets.virjoy_inner, mTouchX-IN_W+IN_45, mTouchY-IN_W+IN_45);
-				else if (mDY < 0)
-					g.drawImage(Assets.virjoy_inner, mTouchX-IN_W+IN_45, mTouchY-IN_W-IN_45);
+			if (mTouchHandler.mDX == 0 && mTouchHandler.mDY == 0)
+				g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W, mTouchHandler.mTouchY-IN_W);
+			if (mTouchHandler.mDX > 0) {
+				if (mTouchHandler.mDY > 0)
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W+IN_45, mTouchHandler.mTouchY-IN_W+IN_45);
+				else if (mTouchHandler.mDY < 0)
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W+IN_45, mTouchHandler.mTouchY-IN_W-IN_45);
 				else
-					g.drawImage(Assets.virjoy_inner, mTouchX-IN_W+IN_R, mTouchY-IN_W);
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W+IN_R, mTouchHandler.mTouchY-IN_W);
 			}
-			else if (mDX < 0){
-				if (mDY > 0)
-					g.drawImage(Assets.virjoy_inner, mTouchX-IN_W-IN_45, mTouchY-IN_W+IN_45);
-				else if (mDY < 0)
-					g.drawImage(Assets.virjoy_inner, mTouchX-IN_W-IN_45, mTouchY-IN_W-IN_45);
+			else if (mTouchHandler.mDX < 0){
+				if (mTouchHandler.mDY > 0)
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W-IN_45, mTouchHandler.mTouchY-IN_W+IN_45);
+				else if (mTouchHandler.mDY < 0)
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W-IN_45, mTouchHandler.mTouchY-IN_W-IN_45);
 				else
-					g.drawImage(Assets.virjoy_inner, mTouchX-IN_W-IN_R, mTouchY-IN_W);
-			}else if (mDY < 0 ) {
-				g.drawImage(Assets.virjoy_inner, mTouchX-IN_W, mTouchY-IN_W-IN_R);
-			}else if (mDY > 0 ) {
-				g.drawImage(Assets.virjoy_inner, mTouchX-IN_W, mTouchY-IN_W+IN_R);
+					g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W-IN_R, mTouchHandler.mTouchY-IN_W);
+			}else if (mTouchHandler.mDY < 0 ) {
+				g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W, mTouchHandler.mTouchY-IN_W-IN_R);
+			}else if (mTouchHandler.mDY > 0 ) {
+				g.drawImage(Assets.virjoy_inner, mTouchHandler.mTouchX-IN_W, mTouchHandler.mTouchY-IN_W+IN_R);
 			}
 		}
 
 		drawHud(g);
+		drawCombo(g);
 
 		drawElement(g);
 
+		if (mLureTimer > 0) {
+			drawLureAura(g);
+		}
+
 		if (mGamePaused) {
-			drawPauseOverlay(g);
+			OverlayRenderer.drawPauseOverlay(g);
 		}else if (isRoundFinished()) {
-			drawRoundEndOverlay(g);
+			boolean cleared = didClearLevel();
+			boolean hasNext = hasNextLevel();
+			String subtitle = mModeRules.getRoundEndSubtitle(
+					mScore, mLevelConfig.index + 1, cleared, hasNext);
+			if (mComboPeak >= 2) {
+				subtitle += "  最高连击 x" + mComboPeak;
+			}
+			OverlayRenderer.drawRoundEndOverlay(g,
+					mModeRules.getRoundEndTitle(cleared, hasNext),
+					subtitle,
+					getRoundEndButtonLabels());
 		}
 
 		drawDebugButton(g);
@@ -465,12 +478,20 @@ public class PlayState extends State {
 		g.drawString("+", incX + 28, incY + 46);
 
 		int spawnX = DEBUG_PANEL_X + 26;
-		int spawnY = DEBUG_PANEL_Y + 236;
-		g.setColor(Color.rgb(106, 191, 245));
-		g.fillRoundRect(spawnX, spawnY, DEBUG_SPAWN_W, DEBUG_SPAWN_H, 12);
-		g.setColor(Color.rgb(16, 56, 90));
-		g.setFont(Typeface.DEFAULT_BOLD, 30);
-		g.drawString("生成1条基础鱼", spawnX + 100, spawnY + 47);
+		int spawnBtnH = 54;
+		int spawnGap = 8;
+
+		// "生成1条基础鱼"
+		int fishY = DEBUG_PANEL_Y + 230;
+		drawSpawnButton(g, spawnX, fishY, DEBUG_SPAWN_W, spawnBtnH, "生成1条基础鱼");
+
+		// "生成一个泡泡"
+		int powerUpY = fishY + spawnBtnH + spawnGap;
+		drawSpawnButton(g, spawnX, powerUpY, DEBUG_SPAWN_W, spawnBtnH, "生成一个泡泡");
+
+		// "生成一个同伴"
+		int companionY = powerUpY + spawnBtnH + spawnGap;
+		drawSpawnButton(g, spawnX, companionY, DEBUG_SPAWN_W, spawnBtnH, "生成一个同伴");
 
 		int closeX = DEBUG_PANEL_X + DEBUG_PANEL_W - DEBUG_CLOSE_W - 18;
 		int closeY = DEBUG_PANEL_Y + DEBUG_PANEL_H - DEBUG_CLOSE_H - 16;
@@ -478,7 +499,34 @@ public class PlayState extends State {
 		g.fillRoundRect(closeX, closeY, DEBUG_CLOSE_W, DEBUG_CLOSE_H, 12);
 		g.setColor(Color.rgb(16, 56, 90));
 		g.setFont(Typeface.DEFAULT_BOLD, 28);
-		g.drawString("关闭", closeX + 48, closeY + 37);
+		float closeTextW = g.measureText("关闭");
+		g.drawString("关闭", closeX + (int)((DEBUG_CLOSE_W - closeTextW) / 2), closeY + 37);
+	}
+
+	private void drawSpawnButton(Painter g, int x, int y, int w, int h, String label) {
+		g.setColor(Color.rgb(106, 191, 245));
+		g.fillRoundRect(x, y, w, h, 12);
+		g.setColor(Color.rgb(16, 56, 90));
+		g.setFont(Typeface.DEFAULT_BOLD, 26);
+		float textW = g.measureText(label);
+		g.drawString(label, x + (int)((w - textW) / 2), y + (int)(h * 0.72f));
+	}
+
+	private void drawLureAura(Painter g) {
+		int cx = mMyFish.getX() + mMyFish.getWidth() / 2;
+		int cy = mMyFish.getY() + mMyFish.getHeight() / 2;
+		float pulse = (float)(Math.sin(System.nanoTime() / 200_000_000.0) * 0.25 + 0.75);
+		int alpha = (int)(60 * pulse);
+		int baseR = 90 + (int)(20 * pulse);
+		Canvas canvas = g.getCanvas();
+		android.graphics.Paint p = new android.graphics.Paint(
+				android.graphics.Paint.ANTI_ALIAS_FLAG);
+		p.setStyle(android.graphics.Paint.Style.STROKE);
+		p.setStrokeWidth(2.5f);
+		for (int i = 0; i < 3; i++) {
+			p.setColor(Color.argb(alpha - i * 12, 255, 105, 180));
+			canvas.drawCircle(cx, cy, baseR + i * 25, p);
+		}
 	}
 
 	private void drawElement(Painter g) {
@@ -555,6 +603,37 @@ public class PlayState extends State {
 		g.fillRoundRect(cardX + 168, cardY + 20, w, 14, 8);
 	}
 
+	// ================================================================
+	//  Combo rendering
+	// ================================================================
+
+	private void drawCombo(Painter g) {
+		if (mCombo < 2) return;
+
+		int[] comboColors = {
+			Color.rgb(255, 215, 0),    // gold  — combo 2
+			Color.rgb(255, 165, 0),    // orange — combo 3
+			Color.rgb(255, 69, 0),     // red-orange — combo 4
+			Color.rgb(200, 50, 255)    // purple — combo 5
+		};
+		int ci = Math.min(mCombo - 2, comboColors.length - 1);
+
+		// Combo indicator between score area and life indicator
+		int comboX = 800;
+		int comboY = 65;
+
+		g.setFont(Typeface.DEFAULT_BOLD, 28);
+		// Shadow for readability
+		g.setColor(Color.argb(120, 0, 0, 0));
+		g.drawString("连击 x" + mCombo, comboX + 2, comboY + 2);
+		// Glow-ish outline
+		g.setColor(Color.argb(80, 255, 255, 255));
+		g.drawString("连击 x" + mCombo, comboX + 1, comboY + 1);
+		// Main text
+		g.setColor(comboColors[ci]);
+		g.drawString("连击 x" + mCombo, comboX, comboY);
+	}
+
 	private void updateCompanion() {
 		if (mCompanionFishList == null || mCompanionFishList.isEmpty()) {
 			return;
@@ -592,7 +671,7 @@ public class PlayState extends State {
 		return target;
 	}
 
-	private void spawnCompanionIfReady() {
+	void spawnCompanionIfReady() {
 		if (mCompanionCharge < COMPANION_CHARGE_TARGET || isRoundFinished()) {
 			return;
 		}
@@ -613,25 +692,95 @@ public class PlayState extends State {
 		mCompanionFishList.clear();
 	}
 
-	private void checkCompanionCollides() {
-		if (mCompanionFishList == null || mCompanionFishList.isEmpty()) {
-			return;
+	private void assignFishBehavior(Fish f) {
+		if (f.mSize >= Fish.BIG) {
+			// Big / Super fish often track the player (2/3 chance)
+			f.mBehavior = RandomNumberGenerator.getRandInt(3) > 0
+					? Fish.Behavior.TRACK : Fish.Behavior.PATROL;
+		} else if (f.mSize <= Fish.NORMAL) {
+			// Small/normal fish are usually PATROL, occasionally FLEE (1/5)
+			f.mBehavior = RandomNumberGenerator.getRandInt(5) == 0
+					? Fish.Behavior.FLEE : Fish.Behavior.PATROL;
+		} else {
+			f.mBehavior = Fish.Behavior.PATROL;
 		}
-		for (CompanionFish companion : mCompanionFishList) {
-			for (Fish f : mOtherFish) {
-				if (!isOnScreen(f) || !companion.collidesWith(f, false)) {
-					continue;
+	}
+
+	private void updateFishAI() {
+		int myCx = mMyFish.getX() + mMyFish.getWidth() / 2;
+		int myCy = mMyFish.getY() + mMyFish.getHeight() / 2;
+
+		for (Fish f : mOtherFish) {
+			if (!isOnScreen(f)) continue;
+			if (f.mNonceState == Fish.DIE
+					|| f.mNonceState == Fish.EATL
+					|| f.mNonceState == Fish.EATR) continue;
+
+			int fCx = f.getX() + f.getWidth() / 2;
+			int fCy = f.getY() + f.getHeight() / 2;
+			int dx = myCx - fCx;  // >0 : player is to the right
+			int dy = myCy - fCy;
+			double dist = Math.sqrt(dx * dx + dy * dy);
+
+			if (f.mBehavior == Fish.Behavior.TRACK
+					&& f.mSize >= mMyFish.mSize && dist < 420) {
+				// Face the player
+				byte wanted = dx > 0 ? Fish.SWIMR : Fish.SWIML;
+				if (f.mNonceState != wanted) {
+					f.setNonceState(wanted);
 				}
-				if (f.mSize < mMyFish.mSize) {
-					addScore((f.mSize + 1) * 10);
-					companion.recordAssistEat();
-					f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
+				// Override velocity: track toward player
+				float speed = Math.max(Math.abs(f.mMoveX), 4f) * 2.5f;
+				f.mMoveX = (int) (dx / dist * speed);
+				f.mMoveY = (int) (dy / dist * speed * 0.5f);
+
+			} else if (f.mBehavior == Fish.Behavior.FLEE
+					&& f.mSize < mMyFish.mSize && dist < 350) {
+				// Face away from the player
+				byte wanted = dx > 0 ? Fish.SWIML : Fish.SWIMR;
+				if (f.mNonceState != wanted) {
+					f.setNonceState(wanted);
 				}
+				// Override velocity: flee from player
+				float speed = Math.max(Math.abs(f.mMoveX), 4f) * 1.8f;
+				f.mMoveX = (int) (-dx / dist * speed);
+				f.mMoveY = (int) (-dy / dist * speed * 0.3f);
 			}
 		}
 	}
 
-	private void addScore(int points) {
+	// ================================================================
+	//  Combo system
+	// ================================================================
+
+	/**
+	 * Register an eat by the player fish: increments combo, resets timer,
+	 * returns current score multiplier.
+	 */
+	float registerEat() {
+		mCombo++;
+		if (mCombo > MAX_COMBO) {
+			mCombo = MAX_COMBO;
+		}
+		mComboTimer = COMBO_WINDOW;
+		if (mCombo > mComboPeak) {
+			mComboPeak = mCombo;
+		}
+		return getComboMultiplier();
+	}
+
+	/** Reset combo to zero (called when player gets eaten). */
+	void resetCombo() {
+		mCombo = 0;
+		mComboTimer = 0;
+	}
+
+	float getComboMultiplier() {
+		if (mCombo <= 1) return 1.0f;
+		return 1.0f + (mCombo - 1) * 0.5f;
+	}
+
+	void addScore(int points) {
 		if (!mModeRules.canGainScore(mScore, mLevelConfig.targetScore)) {
 			return;
 		}
@@ -678,595 +827,58 @@ public class PlayState extends State {
 			g.setColor(Color.argb(200, 255, 255, 255));
 			g.setFont(Typeface.SANS_SERIF, 11);
 			g.drawString("盾", x + 4, y + 10);
+			x += 48;
+		}
+
+		if (mLureTimer > 0) {
+			float ratio = mLureTimer / PowerUpType.LURE.duration;
+			int w = (int) (60 * ratio);
+			g.setColor(Color.argb(180, 255, 105, 180));
+			g.fillRoundRect(x, y, w, 12, 6);
+			g.setColor(Color.argb(200, 255, 255, 255));
+			g.setFont(Typeface.SANS_SERIF, 11);
+			g.drawString("诱", x + 4, y + 10);
 		}
 	}
 
-	private void updateAutoControl() {
-		if (mMyFish.mStartTime <= 10 || mMyFish.mNonceState == Fish.DIE) {
-			mAutoInputX = 0;
-			mAutoInputY = 0;
-			mAutoTargetFish = null;
-			mAutoTargetPowerUp = null;
-			mAutoTargetLockTime = 0;
-			mAutoPowerUpLockTime = 0;
-			mAutoPilotState = AutoPilotState.CRUISE;
-			return;
-		}
-		
-		if (mAutoDecisionTimer < 0.10f) {
-			return;
-		}
-		mAutoDecisionTimer = 0;
-
-		int myCenterX = mMyFish.getX() + mMyFish.getWidth() / 2;
-		int myCenterY = mMyFish.getY() + mMyFish.getHeight() / 2;
-		int escapeDx = getBoundaryEscapeDx(myCenterX);
-		int escapeDy = getBoundaryEscapeDy(myCenterY);
-		boolean escapingBoundary = escapeDx != 0 || escapeDy != 0;
-
-		Fish nearestThreat = null;
-		double nearestThreatDistance = Double.MAX_VALUE;
-		Fish bestFood = null;
-		double bestFoodScore = Double.MAX_VALUE;
-		PowerUp bestPowerUp = null;
-		double bestPowerUpScore = Double.MAX_VALUE;
-
-		for (Fish fish : mOtherFish) {
-			if (!isOnScreen(fish)) {
-				continue;
-			}
-			int fishCenterX = fish.getX() + fish.getWidth() / 2;
-			int fishCenterY = fish.getY() + fish.getHeight() / 2;
-			double distance = distance(myCenterX, myCenterY, fishCenterX, fishCenterY);
-
-			if (fish.mSize >= mMyFish.mSize) {
-				if (distance < nearestThreatDistance) {
-					nearestThreatDistance = distance;
-					nearestThreat = fish;
-				}
-			}else {
-				double candidateScore = scoreFoodTarget(fish, myCenterX, myCenterY);
-				if (candidateScore < bestFoodScore) {
-					bestFoodScore = candidateScore;
-					bestFood = fish;
-				}
-			}
-		}
-
-		for (PowerUp powerUp : mPowerUps) {
-			if (!isOnScreen(powerUp)) {
-				continue;
-			}
-			double candidateScore = scorePowerUpTarget(powerUp, myCenterX, myCenterY);
-			if (candidateScore < bestPowerUpScore) {
-				bestPowerUpScore = candidateScore;
-				bestPowerUp = powerUp;
-			}
-		}
-
-		int targetDx = 0;
-		int targetDy = 0;
-		boolean hardRamMode = false;
-		if (escapingBoundary) {
-			mAutoPilotState = AutoPilotState.ESCAPE_BOUNDARY;
-			mAutoTargetFish = null;
-			mAutoTargetLockTime = 0;
-			targetDx = escapeDx;
-			targetDy = escapeDy;
-		}else if (nearestThreat != null && nearestThreatDistance < 220) {
-			mAutoPilotState = AutoPilotState.EVADE_THREAT;
-			mAutoTargetFish = null;
-			mAutoTargetLockTime = 0;
-			int threatCenterX = nearestThreat.getX() + nearestThreat.getWidth() / 2;
-			int threatCenterY = nearestThreat.getY() + nearestThreat.getHeight() / 2;
-			targetDx = myCenterX - threatCenterX;
-			targetDy = myCenterY - threatCenterY;
-		}else if (shouldSeekPowerUp(bestPowerUp, nearestThreatDistance)) {
-			PowerUp chasePowerUp = chooseAutoPowerUpTarget(bestPowerUp, myCenterX, myCenterY);
-			if (chasePowerUp != null) {
-				int powerUpCenterX = chasePowerUp.getX() + chasePowerUp.getWidth() / 2;
-				int powerUpCenterY = chasePowerUp.getY() + chasePowerUp.getHeight() / 2;
-				targetDx = powerUpCenterX - myCenterX;
-				targetDy = powerUpCenterY - myCenterY;
-				mAutoPilotState = AutoPilotState.CHASE_TARGET;
-				hardRamMode = true;
-				mAutoTargetFish = null;
-			} else {
-				mAutoTargetPowerUp = null;
-				mAutoPowerUpLockTime = 0;
-			}
-		}else {
-			mAutoTargetPowerUp = null;
-			mAutoPowerUpLockTime = 0;
-			Fish chaseFish = chooseAutoTarget(bestFood, myCenterX, myCenterY);
-			if (chaseFish != null) {
-				int liveCenterX = chaseFish.getX() + chaseFish.getWidth() / 2;
-				int liveCenterY = chaseFish.getY() + chaseFish.getHeight() / 2;
-				int liveDx = liveCenterX - myCenterX;
-				int liveDy = liveCenterY - myCenterY;
-
-				// New chase framework:
-				// 1) far-range: approach with mild vertical correction
-				// 2) close-range: force straight ram, bypass smoothing
-				if (Math.abs(liveDx) <= 420 || (Math.abs(liveDx) <= 520 && Math.abs(liveDy) <= 150)) {
-					targetDx = liveDx;
-					targetDy = liveDy;
-					mAutoPilotState = AutoPilotState.CHASE_TARGET;
-					hardRamMode = true;
-				}else {
-					int[] predicted = predictFishCenter(chaseFish);
-					targetDx = predicted[0] - myCenterX;
-					targetDy = predicted[1] - myCenterY;
-					mAutoPilotState = AutoPilotState.CHASE_TARGET;
-				}
-			}else {
-				mAutoPilotState = AutoPilotState.CRUISE;
-				int centerX = GameMainActivity.GAME_WIDTH / 2;
-				int centerY = (GameMainActivity.getPlayTop() + GameMainActivity.getPlayBottom()) / 2;
-				targetDx = centerX - myCenterX;
-				targetDy = centerY - myCenterY;
-			}
-		}
-
-		int desiredX = normalizeControl(targetDx, true);
-		int desiredY = normalizeControl(targetDy, false);
-		if (hardRamMode) {
-			// Force straight bite path to avoid hovering around the target.
-			desiredX = targetDx >= 0 ? 160 : -160;
-			int absDy = Math.abs(targetDy);
-			if (absDy < 56) {
-				desiredY = 0;
-			}else if (absDy < 140) {
-				desiredY = targetDy > 0 ? 55 : -55;
-			}else {
-				desiredY = targetDy > 0 ? 85 : -85;
-			}
-			mAutoInputX = desiredX;
-			mAutoInputY = desiredY;
-			mMyFish.movePress(mAutoInputX, mAutoInputY);
-			return;
-		}
-		mAutoInputX = smoothAutoAxis(mAutoInputX, desiredX, targetDx, 170);
-		mAutoInputY = smoothAutoAxis(mAutoInputY, desiredY, targetDy, 220);
-		mMyFish.movePress(mAutoInputX, mAutoInputY);
-	}
-
-	private Fish chooseAutoTarget(Fish nearestFood, int myCenterX, int myCenterY) {
-		if (mAutoTargetFish != null) {
-			if (!isOnScreen(mAutoTargetFish) || mAutoTargetFish.mSize >= mMyFish.mSize) {
-				mAutoTargetFish = null;
-				mAutoTargetLockTime = 0;
-			}else {
-				int[] predicted = predictFishCenter(mAutoTargetFish);
-				int targetCenterX = predicted[0];
-				int targetCenterY = predicted[1];
-				double distance = distance(myCenterX, myCenterY, targetCenterX, targetCenterY);
-				if (distance < 260 || mAutoTargetLockTime < 0.8f) {
-					return mAutoTargetFish;
-				}
-			}
-		}
-
-		mAutoTargetFish = nearestFood;
-		mAutoTargetLockTime = 0;
-		return mAutoTargetFish;
-	}
-
-	private PowerUp chooseAutoPowerUpTarget(PowerUp nearestPowerUp, int myCenterX, int myCenterY) {
-		if (mAutoTargetPowerUp != null) {
-			if (!isOnScreen(mAutoTargetPowerUp)) {
-				mAutoTargetPowerUp = null;
-				mAutoPowerUpLockTime = 0;
-			} else {
-				int targetCenterX = mAutoTargetPowerUp.getX() + mAutoTargetPowerUp.getWidth() / 2;
-				int targetCenterY = mAutoTargetPowerUp.getY() + mAutoTargetPowerUp.getHeight() / 2;
-				double distance = distance(myCenterX, myCenterY, targetCenterX, targetCenterY);
-				if (distance < 320 || mAutoPowerUpLockTime < 0.8f) {
-					return mAutoTargetPowerUp;
-				}
-			}
-		}
-
-		mAutoTargetPowerUp = nearestPowerUp;
-		mAutoPowerUpLockTime = 0;
-		return mAutoTargetPowerUp;
-	}
-
-	private boolean shouldSeekPowerUp(PowerUp bestPowerUp, double nearestThreatDistance) {
-		if (bestPowerUp == null) {
-			return false;
-		}
-		if (nearestThreatDistance < 260) {
-			return false;
-		}
-		if (bestPowerUp.type == PowerUpType.SHIELD && !mMyFish.mHasShield) {
-			return true;
-		}
-		if (bestPowerUp.type == PowerUpType.SPEED && mSpeedTimer <= 0) {
-			return true;
-		}
-		if (bestPowerUp.type == PowerUpType.FREEZE && mFreezeTimer <= 0) {
-			return true;
-		}
-		if (bestPowerUp.type == PowerUpType.BOMB) {
-			return true;
-		}
-		return mPowerUps.size() >= 2;
-	}
-
-	private double scorePowerUpTarget(PowerUp powerUp, int myCenterX, int myCenterY) {
-		int powerUpCenterX = powerUp.getX() + powerUp.getWidth() / 2;
-		int powerUpCenterY = powerUp.getY() + powerUp.getHeight() / 2;
-		double score = distance(myCenterX, myCenterY, powerUpCenterX, powerUpCenterY);
-
-		switch (powerUp.type) {
-			case SHIELD:
-				score += mMyFish.mHasShield ? 120 : -180;
-				break;
-			case SPEED:
-				score += mSpeedTimer > 0 ? 90 : -120;
-				break;
-			case FREEZE:
-				score += mFreezeTimer > 0 ? 110 : -100;
-				break;
-			case BOMB:
-				score -= 60;
-				break;
-		}
-
-		for (Fish fish : mOtherFish) {
-			if (!isOnScreen(fish) || fish.mSize < mMyFish.mSize) {
-				continue;
-			}
-			int fishCenterX = fish.getX() + fish.getWidth() / 2;
-			int fishCenterY = fish.getY() + fish.getHeight() / 2;
-			double dangerDistance = distance(powerUpCenterX, powerUpCenterY, fishCenterX, fishCenterY);
-			if (dangerDistance < 170) {
-				score += 260 - dangerDistance;
-			}
-		}
-
-		return score;
-	}
-
-	private double scoreFoodTarget(Fish fish, int myCenterX, int myCenterY) {
-		int[] predicted = predictFishCenter(fish);
-		int fishCenterX = predicted[0];
-		int fishCenterY = predicted[1];
-		double distance = distance(myCenterX, myCenterY, fishCenterX, fishCenterY);
-		double score = distance;
-
-		// Prefer safer, smaller targets.
-		score -= (mMyFish.mSize - fish.mSize) * 26;
-
-		// Slightly prefer fish that are ahead of our current motion direction.
-		if ((mMyFish.mMoveX >= 0 && fishCenterX >= myCenterX) || (mMyFish.mMoveX <= 0 && fishCenterX <= myCenterX)) {
-			score -= 18;
-		}
-
-		// Avoid targets that sit too close to bigger fish.
-		for (Fish other : mOtherFish) {
-			if (other == fish || !isOnScreen(other) || other.mSize < mMyFish.mSize) {
-				continue;
-			}
-			int otherCenterX = other.getX() + other.getWidth() / 2;
-			int otherCenterY = other.getY() + other.getHeight() / 2;
-			double dangerDistance = distance(fishCenterX, fishCenterY, otherCenterX, otherCenterY);
-			if (dangerDistance < 170) {
-				score += 220 - dangerDistance;
-			}
-		}
-		return score;
-	}
-
-	private int[] predictFishCenter(Fish fish) {
-		int leadFrames = 10;
-		int predictedX = fish.getX() + fish.getWidth() / 2 + fish.mMoveX * leadFrames;
-		int predictedY = fish.getY() + fish.getHeight() / 2 + fish.mMoveY * leadFrames;
-		int minY = GameMainActivity.getPlayTop() + fish.getHeight() / 2;
-		int maxY = GameMainActivity.getPlayBottom() - fish.getHeight() / 2;
-		if (predictedY < minY) {
-			predictedY = minY;
-		}else if (predictedY > maxY) {
-			predictedY = maxY;
-		}
-		return new int[] {predictedX, predictedY};
-	}
-
-	private int keepForwardChase(int targetDx) {
-		if (targetDx > 0) {
-			return Math.max(targetDx, 80);
-		}
-		if (targetDx < 0) {
-			return Math.min(targetDx, -80);
-		}
-		if (mAutoInputX > 0 || mMyFish.mMoveX > 0) {
-			return 80;
-		}
-		if (mAutoInputX < 0 || mMyFish.mMoveX < 0) {
-			return -80;
-		}
-		return 80;
-	}
-
-	private AutoPilotState resolveChaseState(int targetDx, int targetDy) {
-		int absDx = Math.abs(targetDx);
-		int absDy = Math.abs(targetDy);
-		if (absDx < 90 && absDy > 48) {
-			return AutoPilotState.ALIGN_TARGET;
-		}
-		if (absDx < 140 && absDy < 58) {
-			return AutoPilotState.CHASE_TARGET;
-		}
-		return AutoPilotState.CHASE_TARGET;
-	}
-
-	private int[] shapeChaseVector(int targetDx, int targetDy, AutoPilotState state) {
-		int absDx = Math.abs(targetDx);
-		int absDy = Math.abs(targetDy);
-		if (state == AutoPilotState.ALIGN_TARGET) {
-			int adjustedDx = keepForwardChase(targetDx);
-			int adjustedDy = targetDy > 0 ? Math.max(targetDy, 220) : Math.min(targetDy, -220);
-			return new int[] {adjustedDx, adjustedDy};
-		}
-
-		if (state == AutoPilotState.CHASE_TARGET && absDx < 220) {
-			int adjustedDx = keepForwardChase(targetDx);
-			int adjustedDy;
-			if (absDy < 70) {
-				adjustedDy = 0;
-			}else if (absDy < 120) {
-				adjustedDy = targetDy > 0 ? 55 : -55;
-			}else {
-				adjustedDy = targetDy;
-			}
-			return new int[] {adjustedDx, adjustedDy};
-		}
-
-		if (state == AutoPilotState.CHASE_TARGET && absDx < 140 && absDy < 58) {
-			int adjustedDx = keepForwardChase(targetDx);
-			int adjustedDy = absDy < 22 ? 0 : (targetDy > 0 ? 55 : -55);
-			return new int[] {adjustedDx, adjustedDy};
-		}
-
-		return new int[] {targetDx, targetDy};
-	}
-
-	private int getBoundaryEscapeDx(int myCenterX) {
-		int leftSafe = 160;
-		int rightSafe = GameMainActivity.GAME_WIDTH - 160;
-		if (myCenterX < leftSafe) {
-			return Math.max(220, (GameMainActivity.GAME_WIDTH / 2) - myCenterX);
-		}
-		if (myCenterX > rightSafe) {
-			return Math.min(-220, (GameMainActivity.GAME_WIDTH / 2) - myCenterX);
-		}
-		return 0;
-	}
-
-	private int getBoundaryEscapeDy(int myCenterY) {
-		int topSafe = GameMainActivity.getPlayTop() + 100;
-		int bottomSafe = GameMainActivity.getPlayBottom() - 100;
-		int centerY = (GameMainActivity.getPlayTop() + GameMainActivity.getPlayBottom()) / 2;
-		if (myCenterY < topSafe) {
-			return Math.max(180, centerY - myCenterY);
-		}
-		if (myCenterY > bottomSafe) {
-			return Math.min(-180, centerY - myCenterY);
-		}
-		return 0;
-	}
-
-	private double distance(int x1, int y1, int x2, int y2) {
+	double distance(int x1, int y1, int x2, int y2) {
 		int dx = x1 - x2;
 		int dy = y1 - y2;
 		return Math.sqrt(dx * dx + dy * dy);
 	}
 
-	private int normalizeControl(int delta, boolean horizontal) {
-		if (horizontal) {
-			if (delta > 160) {
-				return 160;
-			}
-			if (delta < -160) {
-				return -160;
-			}
-			if (delta > 70) {
-				return 100;
-			}
-			if (delta < -70) {
-				return -100;
-			}
-			return 0;
-		}
-		if (delta > 120) {
-			return 140;
-		}
-		if (delta < -120) {
-			return -140;
-		}
-		if (delta > 56) {
-			return 80;
-		}
-		if (delta < -56) {
-			return -80;
-		}
-		return 0;
-	}
-
-	private int smoothAutoAxis(int currentInput, int desiredInput, int delta, int flipThreshold) {
-		if (desiredInput == 0) {
-			if (Math.abs(delta) < flipThreshold / 2) {
-				return 0;
-			}
-			return currentInput;
-		}
-		if (currentInput == 0) {
-			return desiredInput;
-		}
-		if ((currentInput > 0 && desiredInput > 0) || (currentInput < 0 && desiredInput < 0)) {
-			return desiredInput;
-		}
-		if (Math.abs(delta) < flipThreshold) {
-			return 0;
-		}
-		return desiredInput;
-	}
-
-	private void drawPauseOverlay(Painter g) {
-		g.setColor(Color.argb(168, 0, 0, 0));
-		g.fillRect(0, 0, GameMainActivity.GAME_WIDTH,GameMainActivity.GAME_HEIGHT);
-
-		drawOverlayCard(g, "游戏已暂停", "可以继续挑战，也可以重新开始");
-		drawOverlayButtons(g, new String[] {"继续游戏", "重新开始", "返回菜单"});
-	}
-
-	private void drawRoundEndOverlay(Painter g) {
-		g.setColor(Color.argb(168, 0, 0, 0));
-		g.fillRect(0, 0, GameMainActivity.GAME_WIDTH,GameMainActivity.GAME_HEIGHT);
-		boolean cleared = didClearLevel();
-		boolean hasNext = hasNextLevel();
-		drawOverlayCard(
-				g,
-				mModeRules.getRoundEndTitle(cleared, hasNext),
-				mModeRules.getRoundEndSubtitle(mScore, mLevelConfig.index + 1, cleared, hasNext));
-		drawOverlayButtons(g, getRoundEndButtonLabels());
-	}
-
-	private void drawOverlayCard(Painter g, String title, String subtitle) {
-		g.setColor(Color.argb(228, 8, 37, 74));
-		g.fillRoundRect(OVERLAY_CARD_X, OVERLAY_CARD_Y, OVERLAY_CARD_W, OVERLAY_CARD_H, 34);
-		g.setColor(Color.argb(120, 255, 255, 255));
-		g.fillRoundRect(OVERLAY_CARD_X + 16, OVERLAY_CARD_Y + 16, OVERLAY_CARD_W - 32, 96, 28);
-
-		g.setFont(Typeface.DEFAULT_BOLD, 44);
-		g.setColor(Color.WHITE);
-		drawCenteredText(g, title, OVERLAY_CARD_X, OVERLAY_CARD_W, OVERLAY_CARD_Y + 96);
-
-		g.setFont(Typeface.SANS_SERIF, 24);
-		g.setColor(Color.argb(255, 223, 241, 255));
-		drawCenteredText(g, subtitle, OVERLAY_CARD_X, OVERLAY_CARD_W, OVERLAY_CARD_Y + 156);
-	}
-
-	private void drawOverlayButtons(Painter g, String[] labels) {
-		for (int i = 0; i < labels.length; i++) {
-			int x = getOverlayButtonX(labels.length, i);
-			int color = i == labels.length - 1 && labels.length == 3
-					? Color.rgb(106, 191, 245)
-					: Color.rgb(255, 197, 81);
-			if (labels.length == 2 && i == 1) {
-				color = Color.rgb(106, 191, 245);
-			}
-			if (labels.length == 3 && i == 1) {
-				color = Color.rgb(255, 197, 81);
-			}
-
-			g.setColor(Color.argb(100, 0, 0, 0));
-			g.fillRoundRect(x + 4, OVERLAY_BUTTON_Y + 4, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H, 18);
-			g.setColor(color);
-			g.fillRoundRect(x, OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H, 18);
-
-			g.setFont(Typeface.DEFAULT_BOLD, 26);
-			g.setColor(Color.rgb(14, 52, 88));
-			drawCenteredText(g, labels[i], x, OVERLAY_BUTTON_W, OVERLAY_BUTTON_Y + 41);
-		}
-	}
-
-	private void drawCenteredText(Painter g, String text, int left, int width, int baselineY) {
-		float textWidth = g.measureText(text);
-		int textX = left + (int)((width - textWidth) / 2f);
-		g.drawString(text, textX, baselineY);
-	}
-
-	private int getOverlayButtonX(int buttonCount, int index) {
-		int totalWidth = buttonCount * OVERLAY_BUTTON_W + (buttonCount - 1) * OVERLAY_BUTTON_GAP;
-		return (GameMainActivity.GAME_WIDTH - totalWidth) / 2 + index * (OVERLAY_BUTTON_W + OVERLAY_BUTTON_GAP);
-	}
-
-	private boolean isRoundFinished() {
+	boolean isRoundFinished() {
 		return mModeRules.isRoundFinished(mLife, mScore, mLevelConfig.targetScore);
 	}
 
-	private boolean didClearLevel() {
+	boolean didClearLevel() {
 		return mModeRules.didClearLevel(mScore, mLevelConfig.targetScore);
 	}
 
-	private boolean hasNextLevel() {
+	boolean hasNextLevel() {
 		return mLevelIndex < LevelRepository.getLevelCount() - 1;
 	}
 
-	private String[] getRoundEndButtonLabels() {
+	String[] getRoundEndButtonLabels() {
 		return mModeRules.getRoundEndButtonLabels(didClearLevel(), hasNextLevel());
 	}
 
-	private boolean isPointInside(int x, int y, int left, int top, int width, int height) {
-		return x >= left && x <= left + width && y >= top && y <= top + height;
-	}
-
-	private void restartGame() {
+	void restartGame() {
 		Assets.stopMusic();
 		setCurrentState(new PlayState(mLevelIndex, mEndlessMode));
 	}
 
-	private void nextLevel() {
+	void nextLevel() {
 		Assets.stopMusic();
 		setCurrentState(new PlayState(mLevelIndex + 1));
 	}
 
-	private void returnToMenu() {
+	void returnToMenu() {
 		Assets.stopMusic();
 		setCurrentState(new MenuState());
 	}
 
-	private boolean handlePauseButtonTap(int scaleX, int scaleY) {
-		if (!mGamePaused && !isRoundFinished()
-				&& isPointInside(scaleX, scaleY, PAUSE_BTN_X, PAUSE_BTN_Y, PAUSE_BTN_SIZE, PAUSE_BTN_SIZE)) {
-			mGamePaused = true;
-			mTouchDown = false;
-			mDX = 0;
-			mDY = 0;
-			Assets.stopMusic();
-			return true;
-		}
-		return false;
-	}
-
-	private boolean handleOverlayTap(int scaleX, int scaleY) {
-		if (mGamePaused) {
-			if (isPointInside(scaleX, scaleY, getOverlayButtonX(3, 0), OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H)) {
-				mGamePaused = false;
-				Assets.playMusic("backgoundsound.mid", true);
-				return true;
-			}
-			if (isPointInside(scaleX, scaleY, getOverlayButtonX(3, 1), OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H)) {
-				restartGame();
-				return true;
-			}
-			if (isPointInside(scaleX, scaleY, getOverlayButtonX(3, 2), OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H)) {
-				returnToMenu();
-				return true;
-			}
-			return true;
-		}
-
-		if (isRoundFinished()) {
-			boolean cleared = didClearLevel();
-			boolean hasNext = hasNextLevel();
-			String[] labels = getRoundEndButtonLabels();
-			for (int i = 0; i < labels.length; i++) {
-				if (isPointInside(scaleX, scaleY, getOverlayButtonX(labels.length, i), OVERLAY_BUTTON_Y, OVERLAY_BUTTON_W, OVERLAY_BUTTON_H)) {
-					ModeRules.RoundEndAction action = mModeRules.resolveRoundEndAction(i, cleared, hasNext);
-					handleRoundEndAction(action);
-					return true;
-				}
-			}
-			return true;
-		}
-
-		return false;
-	}
-
-	private void handleRoundEndAction(ModeRules.RoundEndAction action) {
+	void handleRoundEndAction(ModeRules.RoundEndAction action) {
 		if (action == null) {
 			return;
 		}
@@ -1284,104 +896,7 @@ public class PlayState extends State {
 		}
 	}
 
-	private boolean handleDebugTap(int scaleX, int scaleY) {
-		int btnLeft = GameMainActivity.GAME_WIDTH - DEBUG_BTN_SIZE - DEBUG_BTN_MARGIN;
-		int btnTop = GameMainActivity.GAME_HEIGHT - DEBUG_BTN_SIZE - DEBUG_BTN_MARGIN;
-		if (!mDebugPanelVisible) {
-			if (isPointInside(scaleX, scaleY, btnLeft, btnTop, DEBUG_BTN_SIZE, DEBUG_BTN_SIZE)) {
-				mDebugPanelVisible = true;
-				mTouchDown = false;
-				mDX = 0;
-				mDY = 0;
-				return true;
-			}
-			return false;
-		}
-
-		int closeX = DEBUG_PANEL_X + DEBUG_PANEL_W - DEBUG_CLOSE_W - 18;
-		int closeY = DEBUG_PANEL_Y + DEBUG_PANEL_H - DEBUG_CLOSE_H - 16;
-		if (isPointInside(scaleX, scaleY, closeX, closeY, DEBUG_CLOSE_W, DEBUG_CLOSE_H)) {
-			mDebugPanelVisible = false;
-			return true;
-		}
-
-		int decX = DEBUG_PANEL_X + 26;
-		int decY = DEBUG_PANEL_Y + 154;
-		int incX = decX + DEBUG_SPEED_DEC_W + 12;
-		int incY = decY;
-		if (isPointInside(scaleX, scaleY, decX, decY, DEBUG_SPEED_DEC_W, DEBUG_SPEED_DEC_H)) {
-			mDebugGameSpeed = Math.max(0.25f, mDebugGameSpeed - 0.25f);
-			return true;
-		}
-		if (isPointInside(scaleX, scaleY, incX, incY, DEBUG_SPEED_INC_W, DEBUG_SPEED_INC_H)) {
-			mDebugGameSpeed = Math.min(5.0f, mDebugGameSpeed + 0.25f);
-			return true;
-		}
-
-		int spawnX = DEBUG_PANEL_X + 26;
-		int spawnY = DEBUG_PANEL_Y + 236;
-		if (isPointInside(scaleX, scaleY, spawnX, spawnY, DEBUG_SPAWN_W, DEBUG_SPAWN_H)) {
-			spawnDebugSmallFish();
-			return true;
-		}
-
-		// Panel opened: consume input so gameplay controls are blocked.
-		return true;
-	}
-
-	private int mTouchX,mTouchY;
-	private boolean mTouchDown;
-	private int mDX,mDY;
-
-	@Override
-	public boolean onTouch(MotionEvent e, int scaleX, int scaleY) {
-		if (e.getAction() == MotionEvent.ACTION_DOWN) {
-			if (handleDebugTap(scaleX, scaleY)) {
-				return true;
-			}
-			if (handlePauseButtonTap(scaleX, scaleY) || handleOverlayTap(scaleX, scaleY)) {
-				return true;
-			}
-			if (mAutoMode) {
-				return true;
-			}
-			mTouchX = scaleX;
-			mTouchY = scaleY;
-			mTouchDown = true;
-		}
-		else if (e.getAction() == MotionEvent.ACTION_MOVE) {
-			if (mAutoMode) {
-				return true;
-			}
-			//mMyFish.movePress(scaleX - mTouchX, scaleY - mTouchY);
-			//mTouchX = scaleX;
-			//mTouchY = scaleY;
-			if (scaleX - mTouchX > 10)
-				mDX = 10;
-			else if(scaleX - mTouchX < -10)
-				mDX = -10;
-			else
-				mDX = 0;
-			if (scaleY - mTouchY > 10)
-				mDY = 10;
-			else if (scaleY - mTouchY < -10)
-				mDY = -10;
-			else
-				mDY = 0;
-		}
-		else if (e.getAction() == MotionEvent.ACTION_UP) {
-			if (mDebugPanelVisible || mGamePaused || isRoundFinished()) {
-				return true;
-			}
-			if (mAutoMode) {
-				return true;
-			}
-			mTouchDown = false;
-		}
-		return true;
-	}
-
-	private void spawnPowerUp() {
+	void spawnPowerUp() {
 		PowerUpType[] types = PowerUpType.values();
 		PowerUpType type = types[RandomNumberGenerator.getRandInt(types.length)];
 		PowerUp p = new PowerUp(type);
@@ -1395,7 +910,7 @@ public class PlayState extends State {
 		mLayerManager.append(p);
 	}
 
-	private void spawnDebugSmallFish() {
+	void spawnDebugSmallFish() {
 		Fish f = new Fish(Assets.suergeonfish, 42, 24, Fish.SMALL, Fish.DIE);
 		f.setSize(Fish.SMALL);
 		f.setSpeedBonus(mLevelConfig.speedBonus);
@@ -1413,101 +928,17 @@ public class PlayState extends State {
 		mLayerManager.append(f);
 	}
 
-	private void checkPowerUpCollision() {
-		Iterator<PowerUp> it = mPowerUps.iterator();
-		while (it.hasNext()) {
-			PowerUp p = it.next();
-			if (mMyFish.collidesWith(p, false)) {
-				applyPowerUp(p);
-				if (p == mAutoTargetPowerUp) {
-					mAutoTargetPowerUp = null;
-					mAutoPowerUpLockTime = 0;
-				}
-				it.remove();
-				mLayerManager.remove(p);
-			}
-		}
+	void spawnDebugCompanion() {
+		mCompanionCharge = COMPANION_CHARGE_TARGET;
+		spawnCompanionIfReady();
 	}
 
-	private void applyPowerUp(PowerUp p) {
-		switch (p.type) {
-			case SPEED:
-				mSpeedTimer = PowerUpType.SPEED.duration;
-				mMyFish.mSpeedMultiplier = 2.0f;
-				break;
-			case SHIELD:
-				mMyFish.mHasShield = true;
-				break;
-			case FREEZE:
-				mFreezeTimer = PowerUpType.FREEZE.duration;
-				break;
-			case BOMB:
-				for (Fish f : mOtherFish) {
-					if (f.mSize >= mMyFish.mSize && isOnScreen(f)) {
-						f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-					}
-				}
-				break;
-		}
+	@Override
+	public boolean onTouch(MotionEvent e, int scaleX, int scaleY) {
+		return mTouchHandler.onTouch(e, scaleX, scaleY);
 	}
 
-	public void checkCollides() {
 
-		for (Fish f : mOtherFish) {
-			if (isRoundFinished()) {
-				break;
-			}
-			if (f.collidesWith(mMyFish, false)) {
-
-				if (f.mSize >= mMyFish.mSize) {
-
-					// Shield blocks one hit
-					if (mMyFish.mHasShield) {
-						mMyFish.mHasShield = false;
-						f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-						continue;
-					}
-
-					if (f.mNonceState == Fish.SWIML || f.mNonceState == Fish.SWERVE_L) {
-						f.setNonceState(Fish.EATL);
-					}else if (f.mNonceState == Fish.SWIMR || f.mNonceState == Fish.SWERVE_R) {
-						f.setNonceState(Fish.EATR);
-					}
-					mLife--;
-					if (mLife > 0){
-						mMyFish.setNonceState(Fish.DIE);
-					}
-
-					mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-					break;
-
-				}else {
-					if (mMyFish.mNonceState == Fish.SWIML || mMyFish.mNonceState == Fish.SWERVE_L) {
-						mMyFish.setNonceState(Fish.EATL);
-					}else if (mMyFish.mNonceState == Fish.SWIMR || mMyFish.mNonceState == Fish.SWERVE_R) {
-						mMyFish.setNonceState(Fish.EATR);
-					}
-
-					if (mModeRules.canGainScore(mScore, mLevelConfig.targetScore)) {
-						addScore((f.mSize + 1) * 20);
-						mCompanionCharge = Math.min(COMPANION_CHARGE_TARGET, mCompanionCharge + 1);
-						spawnCompanionIfReady();
-					}
-					if (didClearLevel()) {
-						mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-						break;
-					}
-					else if (mScore >= 70)
-						mMyFish.setSize(Fish.SUPER);
-					else if (mScore >= 30)
-						mMyFish.setSize(Fish.BIG);
-					f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
-				}
-
-			}
-		}
-
-	}
 
 	private byte randomFishSize() {
 		int roll = RandomNumberGenerator.getRandInt(100);
@@ -1530,8 +961,6 @@ public class PlayState extends State {
 	private String getScoreLabel() {
 		return mModeRules.getScoreLabel(mScore, mLevelConfig.targetScore);
 	}
-
-	private boolean mGamePaused = false;
 
 	@Override
 	public void onPause() {

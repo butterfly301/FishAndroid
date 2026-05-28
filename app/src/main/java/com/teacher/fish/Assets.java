@@ -147,6 +147,7 @@ public class Assets {
 			case SHIELD: p.setColor(Color.rgb(40, 130, 255)); break; // Blue
 			case FREEZE: p.setColor(Color.rgb(0, 200, 255));  break; // Cyan
 			case BOMB:   p.setColor(Color.rgb(255, 60, 60));  break; // Red
+			case LURE:   p.setColor(Color.rgb(255, 105, 180)); break; // Pink
 		}
 		canvas.drawCircle(cx, cy, r, p);
 
@@ -187,6 +188,14 @@ public class Assets {
 				p.setStyle(Paint.Style.STROKE);
 				canvas.drawLine(cx, cy - hr + 4, cx, cy - hr - 4, p);
 				canvas.drawCircle(cx, cy - hr - 4, 3, p);
+				break;
+			case LURE:
+				// Three concentric arcs (magnetic / attraction symbol)
+				p.setStyle(Paint.Style.STROKE);
+				p.setStrokeWidth(2.5f);
+				canvas.drawCircle(cx, cy, hr - 2, p);
+				canvas.drawCircle(cx, cy, hr - 6, p);
+				canvas.drawCircle(cx, cy, hr - 10, p);
 				break;
 		}
 

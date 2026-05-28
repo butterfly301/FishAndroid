@@ -5,7 +5,8 @@ public enum PowerUpType {
 	SPEED("加速", 5f),
 	SHIELD("护盾", 0f),
 	FREEZE("冰冻", 3f),
-	BOMB("炸弹", 0f);
+	BOMB("炸弹", 0f),
+	LURE("吸引", 4f);
 
 	public final String label;
 	public final float duration;  // 持续秒数，0=瞬间效果
