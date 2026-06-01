@@ -54,7 +54,6 @@ public class CollisionManager {
 				} else {
 					// Player eats the smaller fish
 					int points = (f.mSize + 1) * 20;
-					if (f.mBehavior == Fish.Behavior.FLEE) points = points * 3 / 2;
 					float comboMult = mState.registerEat();
 					points = (int) (points * comboMult);
 					mState.onPlayerEatFish(f, points);
@@ -82,7 +81,6 @@ public class CollisionManager {
                 }
 				if (f.mSize < mState.mMyFish.mSize) {
 					int points = (f.mSize + 1) * 10;
-					if (f.mBehavior == Fish.Behavior.FLEE) points = points * 3 / 2;
 					mState.onCompanionEatFish(companion, f, points);
 				}
             }

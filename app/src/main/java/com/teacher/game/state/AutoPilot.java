@@ -18,9 +18,7 @@ public class AutoPilot {
 
     public enum State {
         ESCAPE_BOUNDARY,
-        EVADE_THREAT,
         ALIGN_TARGET,
-        CHASE_TARGET,
         CRUISE
     }
 
@@ -150,7 +148,6 @@ public class AutoPilot {
 
         int targetDx = 0;
         int targetDy = 0;
-        boolean hardRamMode = false;
 
         if (escapingBoundary) {
             mPilotState = State.ESCAPE_BOUNDARY;
@@ -158,14 +155,6 @@ public class AutoPilot {
             mTargetLockTime = 0;
             targetDx = escapeDx;
             targetDy = escapeDy;
-        } else if (nearestThreat != null && nearestThreatDistance < 220) {
-            mPilotState = State.EVADE_THREAT;
-            mTargetFish = null;
-            mTargetLockTime = 0;
-            int threatCenterX = nearestThreat.getX() + nearestThreat.getWidth() / 2;
-            int threatCenterY = nearestThreat.getY() + nearestThreat.getHeight() / 2;
-            targetDx = myCenterX - threatCenterX;
-            targetDy = myCenterY - threatCenterY;
         } else if (shouldSeekPowerUp(bestPowerUp, nearestThreatDistance,
                 hasShield, speedTimer, freezeTimer, lureTimer, powerUps.size())) {
             PowerUp chasePowerUp = choosePowerUpTarget(bestPowerUp, myCenterX, myCenterY);
@@ -174,8 +163,7 @@ public class AutoPilot {
                 int powerUpCenterY = chasePowerUp.getY() + chasePowerUp.getHeight() / 2;
                 targetDx = powerUpCenterX - myCenterX;
                 targetDy = powerUpCenterY - myCenterY;
-                mPilotState = State.CHASE_TARGET;
-                hardRamMode = true;
+                mPilotState = State.ALIGN_TARGET;
                 mTargetFish = null;
             } else {
                 mTargetPowerUp = null;
@@ -194,13 +182,12 @@ public class AutoPilot {
                 if (Math.abs(liveDx) <= 420 || (Math.abs(liveDx) <= 520 && Math.abs(liveDy) <= 150)) {
                     targetDx = liveDx;
                     targetDy = liveDy;
-                    mPilotState = State.CHASE_TARGET;
-                    hardRamMode = true;
+                    mPilotState = State.ALIGN_TARGET;
                 } else {
                     int[] predicted = predictFishCenter(chaseFish);
                     targetDx = predicted[0] - myCenterX;
                     targetDy = predicted[1] - myCenterY;
-                    mPilotState = State.CHASE_TARGET;
+                    mPilotState = State.ALIGN_TARGET;
                 }
             } else {
                 mPilotState = State.CRUISE;
@@ -213,37 +200,8 @@ public class AutoPilot {
 
         // --- Apply movement ---
 
-        int desiredX;
-        int desiredY;
-        if (hardRamMode) {
-            // Proportional approach vector: move at the correct angle toward the target.
-            // Speed scales with distance so the fish slows down when close,
-            // preventing overshoot-and-oscillate (the "hovering" bug).
-			float maxSpeed = GameplayTuning.AUTOPILOT_HARDRAM_MAX_SPEED;
-			float stopRadius = GameplayTuning.AUTOPILOT_HARDRAM_STOP_RADIUS;
-            double dist = Math.sqrt(targetDx * targetDx + targetDy * targetDy);
-            if (dist < stopRadius) {
-                desiredX = 0;
-                desiredY = 0;
-                // Zero out the fish's velocity to stop drift/hovering
-                myFish.mMoveX = 0;
-                myFish.mMoveY = 0;
-            } else {
-                float speed = (float) Math.min(dist * 1.5f, maxSpeed);
-                desiredX = (int) (targetDx / dist * speed);
-                desiredY = (int) (targetDy / dist * speed);
-                // Clamp to physical control limits
-				if (desiredX > GameplayTuning.AUTOPILOT_HARDRAM_MAX_X) desiredX = GameplayTuning.AUTOPILOT_HARDRAM_MAX_X;
-				else if (desiredX < -GameplayTuning.AUTOPILOT_HARDRAM_MAX_X) desiredX = -GameplayTuning.AUTOPILOT_HARDRAM_MAX_X;
-				if (desiredY > GameplayTuning.AUTOPILOT_HARDRAM_MAX_Y) desiredY = GameplayTuning.AUTOPILOT_HARDRAM_MAX_Y;
-				else if (desiredY < -GameplayTuning.AUTOPILOT_HARDRAM_MAX_Y) desiredY = -GameplayTuning.AUTOPILOT_HARDRAM_MAX_Y;
-			}
-            myFish.movePress(desiredX, desiredY);
-            return;
-        }
-
-        desiredX = normalizeControl(targetDx, true);
-        desiredY = normalizeControl(targetDy, false);
+        int desiredX = normalizeControl(targetDx, true);
+        int desiredY = normalizeControl(targetDy, false);
         int prevInputX = myFish.mMoveX;
         int prevInputY = myFish.mMoveY;
         int newInputX = smoothAutoAxis(prevInputX, desiredX, targetDx, 170);
@@ -477,52 +435,6 @@ public class AutoPilot {
             return 0;
         }
         return desiredInput;
-    }
-
-    private int keepForwardChase(int targetDx, int currentInputX, int myMoveX) {
-        if (targetDx > 0) return Math.max(targetDx, 80);
-        if (targetDx < 0) return Math.min(targetDx, -80);
-        if (currentInputX > 0 || myMoveX > 0) return 80;
-        if (currentInputX < 0 || myMoveX < 0) return -80;
-        return 80;
-    }
-
-    @SuppressWarnings("unused")
-    private State resolveChaseState(int targetDx, int targetDy) {
-        int absDx = Math.abs(targetDx);
-        int absDy = Math.abs(targetDy);
-        if (absDx < 90 && absDy > 48) {
-            return State.ALIGN_TARGET;
-        }
-        if (absDx < 140 && absDy < 58) {
-            return State.CHASE_TARGET;
-        }
-        return State.CHASE_TARGET;
-    }
-
-    @SuppressWarnings("unused")
-    private int[] shapeChaseVector(int targetDx, int targetDy, State state) {
-        int absDx = Math.abs(targetDx);
-        int absDy = Math.abs(targetDy);
-        if (state == State.ALIGN_TARGET) {
-            int adjustedDx = keepForwardChase(targetDx, 0, 0);
-            int adjustedDy = targetDy > 0 ? Math.max(targetDy, 220) : Math.min(targetDy, -220);
-            return new int[]{adjustedDx, adjustedDy};
-        }
-        if (state == State.CHASE_TARGET && absDx < 220) {
-            int adjustedDx = keepForwardChase(targetDx, 0, 0);
-            int adjustedDy;
-            if (absDy < 70) adjustedDy = 0;
-            else if (absDy < 120) adjustedDy = targetDy > 0 ? 55 : -55;
-            else adjustedDy = targetDy;
-            return new int[]{adjustedDx, adjustedDy};
-        }
-        if (state == State.CHASE_TARGET && absDx < 140 && absDy < 58) {
-            int adjustedDx = keepForwardChase(targetDx, 0, 0);
-            int adjustedDy = absDy < 22 ? 0 : (targetDy > 0 ? 55 : -55);
-            return new int[]{adjustedDx, adjustedDy};
-        }
-        return new int[]{targetDx, targetDy};
     }
 
     private boolean isOnScreen(Sprite s) {

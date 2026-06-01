@@ -695,17 +695,7 @@ public class PlayState extends State {
 	}
 
 	private void assignFishBehavior(Fish f) {
-		if (f.mSize >= Fish.BIG) {
-			// Big / Super fish often track the player (2/3 chance)
-			f.mBehavior = RandomNumberGenerator.getRandInt(3) > 0
-					? Fish.Behavior.TRACK : Fish.Behavior.PATROL;
-		} else if (f.mSize <= Fish.NORMAL) {
-			// Small/normal fish are usually PATROL, occasionally FLEE (1/5)
-			f.mBehavior = RandomNumberGenerator.getRandInt(5) == 0
-					? Fish.Behavior.FLEE : Fish.Behavior.PATROL;
-		} else {
-			f.mBehavior = Fish.Behavior.PATROL;
-		}
+		f.mBehavior = Fish.Behavior.PATROL;
 	}
 
 	private void updateFishAI() {
@@ -724,34 +714,7 @@ public class PlayState extends State {
 			int dy = myCy - fCy;
 			double dist = Math.sqrt(dx * dx + dy * dy);
 
-			if (f.mBehavior == Fish.Behavior.TRACK
-					&& f.mSize >= mMyFish.mSize && dist < GameplayTuning.TRACK_DISTANCE) {
-				// Face the player
-				byte wanted = dx > 0 ? Fish.SWIMR : Fish.SWIML;
-				if (f.mNonceState != wanted) {
-					f.setNonceState(wanted);
-				}
-				// Override velocity: track toward player
-				// Use fixed per-size base speed, NOT f.mMoveX,
-				// to prevent exponential blowup (mMoveX cascading).
-				float baseTrack = 6f + f.mSize * 4f;   // SMALL=10,NORMAL=14,BIG=18,SUPER=22
-				float speed = baseTrack * GameplayTuning.TRACK_MULTIPLIER;
-				f.mMoveX = (int) (dx / dist * speed);
-				f.mMoveY = (int) (dy / dist * speed * 0.5f);
-
-			} else if (f.mBehavior == Fish.Behavior.FLEE
-					&& f.mSize < mMyFish.mSize && dist < GameplayTuning.FLEE_DISTANCE) {
-				// Face away from the player
-				byte wanted = dx > 0 ? Fish.SWIML : Fish.SWIMR;
-				if (f.mNonceState != wanted) {
-					f.setNonceState(wanted);
-				}
-				// Override velocity: flee from player
-				float baseFlee = 3f + f.mSize * 2f;
-				float speed = baseFlee * GameplayTuning.FLEE_MULTIPLIER;
-				f.mMoveX = (int) (-dx / dist * speed);
-				f.mMoveY = (int) (-dy / dist * speed * 0.3f);
-			}
+			// All fish use PATROL behavior — no TRACK/FLEE overrides
 		}
 	}
 
@@ -874,47 +837,48 @@ public class PlayState extends State {
 
 	private void drawPowerUpIndicators(Painter g) {
 		int x = 460;
-		int y = 22;
+		int y = 20;
+		int barH = 32;
 
 		if (mSpeedTimer > 0) {
 			float ratio = mSpeedTimer / PowerUpType.SPEED.duration;
-			int w = (int) (60 * ratio);
+			int w = (int) (140 * ratio);
 			g.setColor(Color.argb(180, 255, 215, 0));
-			g.fillRoundRect(x, y, w, 12, 6);
-			g.setColor(Color.argb(200, 255, 255, 255));
-			g.setFont(Typeface.SANS_SERIF, 11);
-			g.drawString("速", x + 4, y + 10);
-			x += 68;
+			g.fillRoundRect(x, y, w, barH, 6);
+			g.setColor(Color.argb(220, 255, 255, 255));
+			g.setFont(Typeface.SANS_SERIF, 22);
+			g.drawString("加速", x + 8, y + 24);
+			x += 158;
 		}
 
 		if (mFreezeTimer > 0) {
 			float ratio = mFreezeTimer / PowerUpType.FREEZE.duration;
-			int w = (int) (60 * ratio);
+			int w = (int) (140 * ratio);
 			g.setColor(Color.argb(180, 0, 200, 255));
-			g.fillRoundRect(x, y, w, 12, 6);
-			g.setColor(Color.argb(200, 255, 255, 255));
-			g.setFont(Typeface.SANS_SERIF, 11);
-			g.drawString("冰", x + 4, y + 10);
-			x += 68;
+			g.fillRoundRect(x, y, w, barH, 6);
+			g.setColor(Color.argb(220, 255, 255, 255));
+			g.setFont(Typeface.SANS_SERIF, 22);
+			g.drawString("冰冻", x + 8, y + 24);
+			x += 158;
 		}
 
 		if (mMyFish.mHasShield) {
 			g.setColor(Color.argb(180, 40, 130, 255));
-			g.fillRoundRect(x, y, 40, 12, 6);
-			g.setColor(Color.argb(200, 255, 255, 255));
-			g.setFont(Typeface.SANS_SERIF, 11);
-			g.drawString("盾", x + 4, y + 10);
-			x += 48;
+			g.fillRoundRect(x, y, 100, barH, 6);
+			g.setColor(Color.argb(220, 255, 255, 255));
+			g.setFont(Typeface.SANS_SERIF, 22);
+			g.drawString("护盾", x + 8, y + 24);
+			x += 118;
 		}
 
 		if (mLureTimer > 0) {
 			float ratio = mLureTimer / PowerUpType.LURE.duration;
-			int w = (int) (60 * ratio);
+			int w = (int) (140 * ratio);
 			g.setColor(Color.argb(180, 255, 105, 180));
-			g.fillRoundRect(x, y, w, 12, 6);
-			g.setColor(Color.argb(200, 255, 255, 255));
-			g.setFont(Typeface.SANS_SERIF, 11);
-			g.drawString("诱", x + 4, y + 10);
+			g.fillRoundRect(x, y, w, barH, 6);
+			g.setColor(Color.argb(220, 255, 255, 255));
+			g.setFont(Typeface.SANS_SERIF, 22);
+			g.drawString("吸引", x + 8, y + 24);
 		}
 	}
 
