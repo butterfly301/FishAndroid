@@ -28,6 +28,8 @@ public class MenuState extends State {
 
 	@Override
 	public void init() {
+		Assets.stopMusic();
+		Assets.playMusic("MainMenuBGM.mp3", true);
 	}
 
 	@Override
@@ -118,6 +120,7 @@ public class MenuState extends State {
 				int bottom = top + BUTTON_HEIGHT;
 				if (scaleY > top && scaleY < bottom) {
 					Assets.playSound(Assets.selectedID);
+					Assets.stopMusic();
 					switch (i) {
 					case 0:
 						setCurrentState(new LevelSelectState());

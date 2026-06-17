@@ -219,6 +219,7 @@ public class TouchHandler {
                     return true;
                 }
             }
+            mState.returnToMenu();
             return true;
         }
 

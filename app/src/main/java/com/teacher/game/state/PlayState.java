@@ -136,6 +136,7 @@ public class PlayState extends State {
 		mCompanionFishList = new ArrayList<CompanionFish>();
 		mCompanionCharge = 0;
 		mModeRules = ModeRules.forMode(mEndlessMode);
+		Assets.stopMusic();
 		Assets.playMusic("backgoundsound.mid", true);
 
 		mMyFish = new MyFish();
@@ -247,7 +248,7 @@ public class PlayState extends State {
 
 
 			setAirBubblePosition(mAirBubbleR, 860, 1140);
-			setAirBubblePosition(mAirBubbleL, 80, 340);
+			setAirBubblePosition(mAirBubbleL, 0, 100);
 
 			for (int i=0;i<10;i++) {
 				Sprite s  = mAirBubbleList.get(i);
