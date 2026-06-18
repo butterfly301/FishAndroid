@@ -255,6 +255,82 @@ public class GameMainActivity extends Activity {
 				.apply();
 	}
 
+	// ================================================================
+	//  Collection (encyclopedia) progress
+	// ================================================================
+
+	private static final String KEY_COLL_PREFIX = "coll_";
+
+	public static boolean isCollectionDiscovered(String entryId) {
+		if (sGame == null) return false;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		return prefs.getBoolean(KEY_COLL_PREFIX + entryId, false);
+	}
+
+	public static void markCollectionDiscovered(String entryId) {
+		if (sGame == null) return;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		String key = KEY_COLL_PREFIX + entryId;
+		if (!prefs.getBoolean(key, false)) {
+			prefs.edit().putBoolean(key, true).apply();
+		}
+	}
+
+	public static int getCollectionCount() {
+		if (sGame == null) return 0;
+		// Count entries: 8 fish + 5 powerups + 1 companion = 14
+		return 14;
+	}
+
+	public static int getCollectionDiscoveredCount() {
+		if (sGame == null) return 0;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int count = 0;
+		// Fish (8)
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_fish_SURGEON", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_fish_GLOW_SURGEON", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_fish_TUNA", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_fish_SUN_TUNA", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_fish_LION", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_fish_ROYAL_LION", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_fish_SHARK", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_fish_REEF_SHARK", false)) count++;
+		// Power-ups (5)
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_power_SPEED", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_power_SHIELD", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_power_FREEZE", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_power_BOMB", false)) count++;
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_power_LURE", false)) count++;
+		// Companion
+		if (prefs.getBoolean(KEY_COLL_PREFIX + "coll_companion", false)) count++;
+		return count;
+	}
+
+	public static void resetCollectionData() {
+		if (sGame == null) return;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		prefs.edit()
+				.putBoolean(KEY_COLL_PREFIX + "coll_fish_SURGEON", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_fish_GLOW_SURGEON", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_fish_TUNA", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_fish_SUN_TUNA", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_fish_LION", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_fish_ROYAL_LION", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_fish_SHARK", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_fish_REEF_SHARK", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_power_SPEED", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_power_SHIELD", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_power_FREEZE", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_power_BOMB", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_power_LURE", false)
+				.putBoolean(KEY_COLL_PREFIX + "coll_companion", false)
+				.apply();
+	}
+
 	public static int getPlayTop() {
 		return HUD_HEIGHT + 6;
 	}

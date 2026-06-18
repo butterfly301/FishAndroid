@@ -1,5 +1,7 @@
 package com.teacher.game.state;
 
+import java.util.ArrayList;
+
 import com.teacher.fish.Assets;
 import com.teacher.fish.GameMainActivity;
 import com.teacher.framework.util.Painter;
@@ -18,18 +20,76 @@ public class AchievementState extends State {
 	private static final int PANEL_Y = 20;
 	private static final int PANEL_H = 660;
 
+	private static final int TITLE_Y = 85;
+	private static final int TAB_Y = 118;
+	private static final int TAB_H = 42;
+	private static final int TAB_MIN_W = 110;
+
 	private static final int CARD_X = PANEL_X + 28;
 	private static final int CARD_W = PANEL_W - 56;
 	private static final int CARD_H = 50;
 	private static final int CARD_GAP = 6;
 	private static final int ROW_H = CARD_H + CARD_GAP;
+	private static final int FIRST_CARD_Y = TAB_Y + TAB_H + 14;
 
-	private static final int FIRST_ROW_Y = 140;
-	private static final int TITLE_Y = 90;
-	private static final int BACK_BTN_Y = 685;
+	private static final int BACK_BTN_Y = 655;
+	private static final int BACK_BTN_W = 260;
+	private static final int BACK_BTN_H = 42;
+
+	// ---- Tab state ----
+	private String[] mCategories;
+	private int mTabCount;
+	private int[] mTabLeft;
+	private int[] mTabWidth;
+	private int mSelectedTab;
 
 	@Override
 	public void init() {
+		buildCategories();
+		mSelectedTab = 0;
+	}
+
+	private void buildCategories() {
+		// Collect unique category keys from repository
+		ArrayList<String> cats = new ArrayList<>();
+		for (int i = 0; i < AchievementRepository.getCount(); i++) {
+			String cat = AchievementRepository.get(i).category;
+			if (!cats.contains(cat)) {
+				cats.add(cat);
+			}
+		}
+		mCategories = cats.toArray(new String[0]);
+		mTabCount = mCategories.length;
+		computeTabPositions();
+	}
+
+	private void computeTabPositions() {
+		mTabLeft = new int[mTabCount];
+		mTabWidth = new int[mTabCount];
+		int totalTextW = 0;
+		for (int i = 0; i < mTabCount; i++) {
+			String label = L10n.get(mCategories[i]);
+			mTabWidth[i] = Math.max(TAB_MIN_W, label.length() * 20 + 28);
+			totalTextW += mTabWidth[i];
+		}
+		int totalGap = 10 * (mTabCount - 1);
+		int startX = PANEL_X + (PANEL_W - totalTextW - totalGap) / 2;
+		for (int i = 0; i < mTabCount; i++) {
+			mTabLeft[i] = startX;
+			startX += mTabWidth[i] + 10;
+		}
+	}
+
+	private ArrayList<AchievementConfig> getEntriesForTab() {
+		ArrayList<AchievementConfig> result = new ArrayList<>();
+		String cat = mCategories[mSelectedTab];
+		for (int i = 0; i < AchievementRepository.getCount(); i++) {
+			AchievementConfig c = AchievementRepository.get(i);
+			if (c.category.equals(cat)) {
+				result.add(c);
+			}
+		}
+		return result;
 	}
 
 	@Override
@@ -44,34 +104,43 @@ public class AchievementState extends State {
 		g.setColor(Color.argb(180, 6, 32, 64));
 		g.fillRoundRect(PANEL_X, PANEL_Y, PANEL_W, PANEL_H, 28);
 
-		// Title field
+		// Title
 		g.setColor(Color.argb(130, 255, 255, 255));
-		g.fillRoundRect(PANEL_X + 28, PANEL_Y + 44, PANEL_W - 56, 68, 24);
-
-		g.setFont(Typeface.DEFAULT_BOLD, 38);
+		g.fillRoundRect(PANEL_X + 28, PANEL_Y + 26, PANEL_W - 56, 64, 22);
+		g.setFont(Typeface.DEFAULT_BOLD, 36);
 		g.setColor(Color.WHITE);
 		drawCenteredText(g, L10n.get("ach_title"), PANEL_X, PANEL_W, TITLE_Y);
 
-		// Achievement rows — driven by AchievementRepository
-		int count = AchievementRepository.getCount();
-		for (int i = 0; i < count; i++) {
-			drawAchievementRow(g, i);
+		// Tab bar
+		for (int i = 0; i < mTabCount; i++) {
+			String label = L10n.get(mCategories[i]);
+			boolean selected = (i == mSelectedTab);
+			g.setColor(selected
+					? Color.rgb(255, 198, 84)
+					: Color.argb(160, 200, 220, 240));
+			g.fillRoundRect(mTabLeft[i], TAB_Y, mTabWidth[i], TAB_H, 14);
+			g.setFont(Typeface.DEFAULT_BOLD, 20);
+			g.setColor(selected ? Color.rgb(12, 58, 93) : Color.rgb(200, 220, 240));
+			drawCenteredText(g, label, mTabLeft[i], mTabWidth[i], TAB_Y + 29);
+		}
+
+		// Achievement rows for selected tab
+		ArrayList<AchievementConfig> entries = getEntriesForTab();
+		for (int i = 0; i < entries.size(); i++) {
+			drawAchievementRow(g, entries.get(i), i);
 		}
 
 		// Back button
-		int backBtnW = 300;
-		int backBtnH = 50;
-		int backBtnX = (GameMainActivity.GAME_WIDTH - backBtnW) / 2;
+		int backBtnX = (GameMainActivity.GAME_WIDTH - BACK_BTN_W) / 2;
 		g.setColor(Color.rgb(106, 191, 245));
-		g.fillRoundRect(backBtnX, BACK_BTN_Y, backBtnW, backBtnH, 18);
-		g.setFont(Typeface.DEFAULT_BOLD, 26);
+		g.fillRoundRect(backBtnX, BACK_BTN_Y, BACK_BTN_W, BACK_BTN_H, 16);
+		g.setFont(Typeface.DEFAULT_BOLD, 22);
 		g.setColor(Color.rgb(16, 56, 90));
-		drawCenteredText(g, L10n.get("ach_back"), backBtnX, backBtnW, BACK_BTN_Y + 34);
+		drawCenteredText(g, L10n.get("ach_back"), backBtnX, BACK_BTN_W, BACK_BTN_Y + 28);
 	}
 
-	private void drawAchievementRow(Painter g, int index) {
-		AchievementConfig config = AchievementRepository.get(index);
-		int y = FIRST_ROW_Y + index * ROW_H;
+	private void drawAchievementRow(Painter g, AchievementConfig config, int index) {
+		int y = FIRST_CARD_Y + index * ROW_H;
 		boolean earned = isAchievementEarned(config);
 		int progress = getAchievementProgress(config);
 		int threshold = config.threshold;
@@ -156,14 +225,25 @@ public class AchievementState extends State {
 		if (e.getAction() != MotionEvent.ACTION_UP) {
 			return true;
 		}
-		int backBtnW = 300;
-		int backBtnH = 50;
-		int backBtnX = (GameMainActivity.GAME_WIDTH - backBtnW) / 2;
-		if (scaleX >= backBtnX && scaleX <= backBtnX + backBtnW
-				&& scaleY >= BACK_BTN_Y && scaleY <= BACK_BTN_Y + backBtnH) {
+
+		// Tab selection
+		for (int i = 0; i < mTabCount; i++) {
+			if (scaleX >= mTabLeft[i] && scaleX <= mTabLeft[i] + mTabWidth[i]
+					&& scaleY >= TAB_Y && scaleY <= TAB_Y + TAB_H) {
+				Assets.playSound(Assets.selectedID);
+				mSelectedTab = i;
+				return true;
+			}
+		}
+
+		// Back button
+		int backBtnX = (GameMainActivity.GAME_WIDTH - BACK_BTN_W) / 2;
+		if (scaleX >= backBtnX && scaleX <= backBtnX + BACK_BTN_W
+				&& scaleY >= BACK_BTN_Y && scaleY <= BACK_BTN_Y + BACK_BTN_H) {
 			setCurrentState(new MenuState());
 			return true;
 		}
+
 		return true;
 	}
 }

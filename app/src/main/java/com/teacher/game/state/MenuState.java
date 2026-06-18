@@ -11,23 +11,44 @@ import android.graphics.Typeface;
 import android.view.MotionEvent;
 
 public class MenuState extends State {
-	private String[] mMenuItems;
+
+	// Item order: 0-1 row0, 2-3 row1, 4-5 row2, 6 bottom
+	private static final int ITEM_COUNT = 7;
+	private static final int GRID_COUNT = 6; // first 6 items in 3x2 grid
 
 	private String[] getMenuItems() {
 		return new String[]{
-			L10n.get("menu_level_mode"),
-			L10n.get("menu_endless_mode"),
-			L10n.get("menu_credits"),
-			L10n.get("menu_settings"),
-			L10n.get("menu_achievements"),
-			L10n.get("menu_exit")
+			L10n.get("menu_level_mode"),      // 0  col0 row0
+			L10n.get("menu_endless_mode"),    // 1  col1 row0
+			L10n.get("menu_credits"),         // 2  col0 row1
+			L10n.get("menu_settings"),        // 3  col1 row1
+			L10n.get("menu_achievements"),    // 4  col0 row2
+			L10n.get("menu_collection"),      // 5  col1 row2
+			L10n.get("menu_exit")             // 6  centered bottom
 		};
 	}
-	private static final int BUTTON_WIDTH = 320;
-	private static final int BUTTON_HEIGHT = 70;
-	private static final int BUTTON_LEFT = (GameMainActivity.GAME_WIDTH - BUTTON_WIDTH) / 2;
-	private static final int BUTTON_TOP = 190;
-	private static final int BUTTON_GAP = 78;
+
+	// Two-column grid constants
+	private static final int BUTTON_W = 300;
+	private static final int BUTTON_H = 64;
+	private static final int GRID_GAP_X = 60;
+	private static final int GRID_LEFT = (GameMainActivity.GAME_WIDTH - (BUTTON_W * 2 + GRID_GAP_X)) / 2;
+	private static final int COL0_X = GRID_LEFT;
+	private static final int COL1_X = GRID_LEFT + BUTTON_W + GRID_GAP_X;
+	private static final int GRID_TOP = 215;
+	private static final int GRID_GAP_Y = 72;
+
+	// Exit button (bottom center)
+	private static final int EXIT_W = 240;
+	private static final int EXIT_H = 56;
+	private static final int EXIT_X = (GameMainActivity.GAME_WIDTH - EXIT_W) / 2;
+	private static final int EXIT_Y = GRID_TOP + 3 * GRID_GAP_Y + 6;
+
+	// High score label for endless mode (next to col1 row0)
+	private static final int HS_X = COL1_X + BUTTON_W + 18;
+	private static final int HS_Y = GRID_TOP + 44;
+
+	// Control mode toggle (bottom-left)
 	private static final int CONTROL_PANEL_X = 36;
 	private static final int CONTROL_PANEL_Y = 666;
 	private static final int CONTROL_PANEL_W = 340;
@@ -39,6 +60,8 @@ public class MenuState extends State {
 	private static final int CONTROL_OPTION_GAP = 16;
 	private static final int CONTROL_OPTION_Y = 672;
 
+	private String[] mMenuItems;
+
 	@Override
 	public void init() {
 		Assets.stopMusic();
@@ -48,13 +71,13 @@ public class MenuState extends State {
 
 	@Override
 	public void update(float delta) {
-		// No delayed transition in main menu. Keep immediate response.
 	}
 
 	@Override
 	public void render(Painter g) {
 		g.drawImage(Assets.menu, 0, 0);
 
+		// Title card
 		String title = L10n.get("menu_title");
 		String subtitle = L10n.get("menu_subtitle");
 
@@ -69,30 +92,39 @@ public class MenuState extends State {
 		float subtitleWidth = g.measureText(subtitle);
 		g.drawString(subtitle, (GameMainActivity.GAME_WIDTH - (int)subtitleWidth) / 2, 170);
 
-		for (int i = 0; i < mMenuItems.length; i++) {
-			int top = BUTTON_TOP + i * BUTTON_GAP;
-			int color = Color.argb(210, 255, 255, 255);
-			int shadow = Color.argb(78, 3, 26, 54);
-
-			g.setColor(shadow);
-			g.fillRoundRect(BUTTON_LEFT + 4, top + 4, BUTTON_WIDTH, BUTTON_HEIGHT, 18);
-			g.setColor(color);
-			g.fillRoundRect(BUTTON_LEFT, top, BUTTON_WIDTH, BUTTON_HEIGHT, 18);
-
-			g.setFont(Typeface.SANS_SERIF, 30);
-			g.setColor(Color.rgb(12, 58, 93));
-			float textWidth = g.measureText(mMenuItems[i]);
-			int textX = BUTTON_LEFT + (int)((BUTTON_WIDTH - textWidth) / 2);
-			g.drawString(mMenuItems[i], textX, top + 46);
-
-			if (i == 1) {
-				g.setFont(Typeface.SANS_SERIF, 20);
-				g.setColor(Color.argb(255, 230, 244, 255));
-				g.drawString(L10n.get("menu_high_score", GameMainActivity.getEndlessHighScore()), BUTTON_LEFT + BUTTON_WIDTH + 28, top + 44);
-			}
+		// Draw 2-column grid buttons (indices 0-5)
+		for (int i = 0; i < GRID_COUNT; i++) {
+			int col = i % 2;
+			int row = i / 2;
+			int left = (col == 0) ? COL0_X : COL1_X;
+			int top = GRID_TOP + row * GRID_GAP_Y;
+			drawButton(g, left, top, BUTTON_W, BUTTON_H, mMenuItems[i]);
 		}
 
+		// High score label for endless mode
+		g.setFont(Typeface.SANS_SERIF, 20);
+		g.setColor(Color.argb(255, 230, 244, 255));
+		g.drawString(L10n.get("menu_high_score", GameMainActivity.getEndlessHighScore()), HS_X, HS_Y);
+
+		// Exit button (bottom center)
+		drawButton(g, EXIT_X, EXIT_Y, EXIT_W, EXIT_H, mMenuItems[6]);
+
+		// Control toggle
 		drawControlToggle(g);
+	}
+
+	private void drawButton(Painter g, int left, int top, int w, int h, String label) {
+		int shadow = Color.argb(78, 3, 26, 54);
+		int color = Color.argb(210, 255, 255, 255);
+		g.setColor(shadow);
+		g.fillRoundRect(left + 3, top + 3, w, h, 16);
+		g.setColor(color);
+		g.fillRoundRect(left, top, w, h, 16);
+		g.setFont(Typeface.SANS_SERIF, 28);
+		g.setColor(Color.rgb(12, 58, 93));
+		float textWidth = g.measureText(label);
+		int textX = left + (int)((w - textWidth) / 2);
+		g.drawString(label, textX, top + h - 24);
 	}
 
 	private void drawControlToggle(Painter g) {
@@ -124,48 +156,52 @@ public class MenuState extends State {
 		if (e.getAction() == MotionEvent.ACTION_UP && handleControlToggleTap(scaleX, scaleY)) {
 			return true;
 		}
-
 		if (e.getAction() != MotionEvent.ACTION_UP) {
 			return true;
 		}
 
-		int left = BUTTON_LEFT;
-		int right = left + BUTTON_WIDTH;
-		if (scaleX > left && scaleX < right) {
-			for (int i = 0; i < mMenuItems.length; i++) {
-				int top = BUTTON_TOP + i * BUTTON_GAP;
-				int bottom = top + BUTTON_HEIGHT;
-				if (scaleY > top && scaleY < bottom) {
-					Assets.playSound(Assets.selectedID);
-					Assets.stopMusic();
-					switch (i) {
-					case 0:
-						setCurrentState(new LevelSelectState());
-						break;
-					case 1:
-						setCurrentState(new PlayState(true));
-						break;
-					case 2:
-						setCurrentState(new HelpState());
-						break;
-					case 3:
-						setCurrentState(new SettingsState());
-						break;
-					case 4:
-						setCurrentState(new AchievementState());
-						break;
-					case 5:
-						GameMainActivity.sGame.exit();
-						break;
-					default:
-						break;
-					}
-					return true;
-				}					
-			}			
+		// Check grid buttons (indices 0-5)
+		for (int i = 0; i < GRID_COUNT; i++) {
+			int col = i % 2;
+			int row = i / 2;
+			int left = (col == 0) ? COL0_X : COL1_X;
+			int top = GRID_TOP + row * GRID_GAP_Y;
+			if (isInside(scaleX, scaleY, left, top, BUTTON_W, BUTTON_H)) {
+				Assets.playSound(Assets.selectedID);
+				Assets.stopMusic();
+				switch (i) {
+				case 0:
+					setCurrentState(new LevelSelectState());
+					break;
+				case 1:
+					setCurrentState(new PlayState(true));
+					break;
+				case 2:
+					setCurrentState(new HelpState());
+					break;
+				case 3:
+					setCurrentState(new SettingsState());
+					break;
+				case 4:
+					setCurrentState(new AchievementState());
+					break;
+				case 5:
+					setCurrentState(new CollectionState());
+					break;
+				}
+				return true;
+			}
 		}
-		return true;
 
+		// Exit button (index 6)
+		if (isInside(scaleX, scaleY, EXIT_X, EXIT_Y, EXIT_W, EXIT_H)) {
+			Assets.playSound(Assets.selectedID);
+			Assets.stopMusic();
+			GameMainActivity.sGame.exit();
+			return true;
+		}
+
+		return true;
 	}
 
 	private boolean isInside(int x, int y, int left, int top, int width, int height) {
@@ -192,5 +228,4 @@ public class MenuState extends State {
 		}
 		return false;
 	}
-
 }

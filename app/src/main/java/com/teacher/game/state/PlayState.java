@@ -582,11 +582,28 @@ public class PlayState extends State {
 		return target;
 	}
 
+	/**
+	 * Track power-up collection for the encyclopedia.
+	 */
+	private static void recordPowerUpCollected(PowerUpType type) {
+		String id;
+		switch (type) {
+			case SPEED:  id = "coll_power_SPEED"; break;
+			case SHIELD: id = "coll_power_SHIELD"; break;
+			case FREEZE: id = "coll_power_FREEZE"; break;
+			case BOMB:   id = "coll_power_BOMB"; break;
+			case LURE:   id = "coll_power_LURE"; break;
+			default:     return;
+		}
+		GameMainActivity.markCollectionDiscovered(id);
+	}
+
 	void spawnCompanionIfReady() {
 		if (mCompanionCharge < COMPANION_CHARGE_TARGET || isRoundFinished()) {
 			return;
 		}
 		mCompanionCharge -= COMPANION_CHARGE_TARGET;
+		GameMainActivity.markCollectionDiscovered("coll_companion");
 		CompanionFish companion = new CompanionFish();
 		int offsetIndex = mCompanionFishList.size() % 4;
 		int spawnOffsetX = -90 - offsetIndex * 28;
@@ -755,6 +772,7 @@ public class PlayState extends State {
 	void onCollectPowerUp(PowerUp powerUp) {
 		mStats.powerUpsCollected++;
 		mRoundPowerUpsCollected++;
+		recordPowerUpCollected(powerUp.type);
 		switch (powerUp.type) {
 			case SPEED:
 				mSpeedTimer = PowerUpType.SPEED.duration;
@@ -957,8 +975,30 @@ public class PlayState extends State {
 	}
 
 	private void prepareEnemyFish(Fish fish, byte size) {
-		fish.setSpecies(randomFishSpecies(size));
+		Fish.Species species = randomFishSpecies(size);
+		fish.setSpecies(species);
 		fish.setSpeedBonus(mLevelConfig.speedBonus);
+		recordFishSpeciesEncountered(species);
+	}
+
+	/**
+	 * Track fish species for the collection encyclopedia.
+	 * Called whenever a fish species is assigned (spawn / respawn).
+	 */
+	private static void recordFishSpeciesEncountered(Fish.Species species) {
+		String id;
+		switch (species) {
+			case SURGEON:      id = "coll_fish_SURGEON"; break;
+			case GLOW_SURGEON: id = "coll_fish_GLOW_SURGEON"; break;
+			case TUNA:         id = "coll_fish_TUNA"; break;
+			case SUN_TUNA:     id = "coll_fish_SUN_TUNA"; break;
+			case LION:         id = "coll_fish_LION"; break;
+			case ROYAL_LION:   id = "coll_fish_ROYAL_LION"; break;
+			case SHARK:        id = "coll_fish_SHARK"; break;
+			case REEF_SHARK:   id = "coll_fish_REEF_SHARK"; break;
+			default:           return;
+		}
+		GameMainActivity.markCollectionDiscovered(id);
 	}
 
 	private Fish.Species randomFishSpecies(byte size) {

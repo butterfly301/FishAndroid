@@ -178,6 +178,11 @@ public class L10n {
 		{"ach_title",           "成就列表", "Achievements", "実績一覧", "Succ\u00e8s"},
 		{"ach_back",            "返回主菜单", "Back to Menu", "メニューに戻る", "Retour au menu"},
 		{"ach_unlocked",        "已达成", "Unlocked", "解除済み", "D\u00e9bloqu\u00e9"},
+		{"ach_cat_eat",         "捕食", "Predation", "捕食", "Prédation"},
+		{"ach_cat_combo",       "连击", "Combo", "コンボ", "Combo"},
+		{"ach_cat_item",        "道具", "Items", "アイテム", "Objets"},
+		{"ach_cat_level",       "关卡", "Levels", "ステージ", "Niveaux"},
+		{"ach_cat_score",       "高分", "Score", "スコア", "Score"},
 
 		{"ach_eat_fish",        "大鱼吃小鱼", "Big Fish", "大魚小魚", "Grand poisson"},
 		{"ach_eat_fish_desc",   "累计吃掉 100 条鱼", "Eat 100 fish total", "合計100匹の魚を食べる", "Mangez 100 poissons au total"},
@@ -199,6 +204,47 @@ public class L10n {
 		{"ach_combo_expert_desc","最高连击达到 10", "Reach 10 combo", "コンボ10達成", "Atteignez combo 10"},
 		{"ach_item_tycoon",     "道具大亨", "Item Tycoon", "アイテムタイクーン", "Magnat des Objets"},
 		{"ach_item_tycoon_desc","累计收集 100 个道具", "Collect 100 items total", "合計100個のアイテムを収集", "Collectez 100 objets au total"},
+
+		// ==================== CollectionState ====================
+		{"coll_title",          "图鉴", "Collection", "図鑑", "Encyclopédie"},
+		{"coll_back",           "返回主菜单", "Back to Menu", "メニューに戻る", "Retour au menu"},
+		{"coll_section_fish",   "鱼类", "Fish", "魚類", "Poissons"},
+		{"coll_section_powerup","道具", "Items", "アイテム", "Objets"},
+		{"coll_section_other",  "其他", "Other", "その他", "Autre"},
+		{"coll_found",          "已发现", "Found", "発見済み", "Découvert"},
+		{"coll_not_found",      "未发现", "Not Found", "未発見", "Non découvert"},
+
+		// Fish species names
+		{"fish_SURGEON",        "小丑鱼", "Surgeonfish", "エンゼルフィッシュ", "Poisson-chirurgien"},
+		{"fish_SURGEON_desc",   "最常见的珊瑚鱼，体型小巧", "Common reef fish, small size", "最も一般的なサンゴ礁の魚", "Poisson de récif commun, petite taille"},
+		{"fish_GLOW_SURGEON",   "发光小丑鱼", "Glow Surgeonfish", "グローエンゼルフィッシュ", "Poisson-chirurgien lumineux"},
+		{"fish_GLOW_SURGEON_desc","变种小丑鱼，散发微弱荧光", "Variant surgeonfish with faint glow", "淡く光る変種エンゼルフィッシュ", "Variante qui émet une lueur faible"},
+		{"fish_TUNA",           "金枪鱼", "Tuna", "マグロ", "Thon"},
+		{"fish_TUNA_desc",      "中型掠食者，游速较快", "Medium predator, swift swimmer", "中型の捕食者、遊泳速度が速い", "Prédateur moyen, nageur rapide"},
+		{"fish_SUN_TUNA",       "太阳金枪鱼", "Sun Tuna", "サンマグロ", "Thon solaire"},
+		{"fish_SUN_TUNA_desc",  "金色鳞片的稀有金枪鱼", "Rare tuna with golden scales", "金色の鱗を持つ珍しいマグロ", "Thon rare aux écailles dorées"},
+		{"fish_LION",           "狮子鱼", "Lionfish", "ミノカサゴ", "Poisson-lion"},
+		{"fish_LION_desc",      "大型掠食者，不怒自威", "Large predator with majestic fins", "大きな捕食者、荘厳なヒレ", "Grand prédateur aux nageoires majestueuses"},
+		{"fish_ROYAL_LION",     "皇冠狮子鱼", "Royal Lionfish", "ロイヤルミノカサゴ", "Poisson-lion royal"},
+		{"fish_ROYAL_LION_desc","王冠般纹路的稀有狮子鱼", "Rare lionfish with crown pattern", "王冠のような模様の希少種", "Poisson-lion rare au motif de couronne"},
+		{"fish_SHARK",          "鲨鱼", "Shark", "サメ", "Requin"},
+		{"fish_SHARK_desc",     "海洋霸主，极速掠食者", "Ocean apex predator, extreme speed", "海の頂点捕食者、驚異の速度", "Prédateur suprême de l'océan"},
+		{"fish_REEF_SHARK",     "礁鲨", "Reef Shark", "リーフシャーク", "Requin des récifs"},
+		{"fish_REEF_SHARK_desc","暗色花纹的变种鲨鱼", "Dark patterned variant shark", "暗い模様の変種サメ", "Requin variant à motif sombre"},
+
+		// Power-up descriptions (keys reuse powerup_speed etc from PowerUpType)
+		{"powerup_speed_desc",  "短时间内提高游泳速度", "Temporary speed boost", "短時間スピードアップ", "Boost de vitesse temporaire"},
+		{"powerup_shield_desc", "抵挡一次大鱼攻击", "Block one big fish attack", "大魚の攻撃を1回防ぐ", "Bloque une attaque de gros poisson"},
+		{"powerup_freeze_desc", "冻结所有敌鱼，动弹不得", "Freeze all enemy fish", "敵を全て凍結する", "Gèle tous les poissons ennemis"},
+		{"powerup_bomb_desc",   "消灭屏幕上所有大鱼", "Eliminate all big fish on screen", "画面上の大魚を全滅", "Élimine tous les gros poissons"},
+		{"powerup_lure_desc",   "将周围小鱼吸引到身边", "Attract nearby small fish", "周囲の小魚を引き寄せる", "Attire les petits poissons"},
+
+		// Companion
+		{"coll_companion",      "同伴鱼", "Companion Fish", "仲間の魚", "Poisson Compagnon"},
+		{"coll_companion_desc", "战斗中召唤的忠实伙伴，会主动攻击附近小鱼", "A loyal battle companion that auto-attacks nearby fish", "戦闘で召喚した仲間、自動で攻撃", "Un compagnon fidèle qui attaque automatiquement"},
+
+		// Menu button
+		{"menu_collection",     "图鉴", "Collection", "図鑑", "Encyclopédie"},
 
 		// ==================== LoadState ====================
 		{"loading",             "加载中...", "Loading...", "読み込み中...", "Chargement..."},
