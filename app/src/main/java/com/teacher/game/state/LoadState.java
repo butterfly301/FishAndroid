@@ -3,6 +3,7 @@ package com.teacher.game.state;
 import com.teacher.fish.Assets;
 import com.teacher.fish.GameMainActivity;
 import com.teacher.framework.util.Painter;
+import com.teacher.game.state.L10n;
 
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -56,7 +57,7 @@ public class LoadState extends State {
 		// Loading text
 		g.setFont(Typeface.SANS_SERIF, 22);
 		g.setColor(Color.argb(220, 255, 255, 255));
-		g.drawString("加载中...", barX + barW / 2 - 48, barY - 10);
+		g.drawString(L10n.get("loading"), barX + barW / 2 - 48, barY - 10);
 	}
 
 	@Override

@@ -5,6 +5,7 @@ import com.teacher.fish.GameMainActivity;
 import com.teacher.framework.util.Painter;
 import com.teacher.game.model.LevelConfig;
 import com.teacher.game.model.LevelRepository;
+import com.teacher.game.state.L10n;
 
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -64,15 +65,15 @@ public class LevelSelectState extends State {
 
 		g.setFont(Typeface.DEFAULT_BOLD, 48);
 		g.setColor(Color.WHITE);
-		drawCenteredText(g, "选择关卡", CARD_X, CARD_W, 122);
+		drawCenteredText(g, L10n.get("level_title"), CARD_X, CARD_W, 122);
 
 		g.setFont(Typeface.SANS_SERIF, 24);
 		g.setColor(Color.argb(255, 220, 244, 255));
-		drawCenteredText(g, "当前已扩展为 100 关，难度会持续提升", CARD_X, CARD_W, 170);
+		drawCenteredText(g, L10n.get("level_info"), CARD_X, CARD_W, 170);
 
 		g.setFont(Typeface.DEFAULT_BOLD, 22);
 		g.setColor(Color.argb(255, 196, 231, 255));
-		drawCenteredText(g, "第 " + (mPageIndex + 1) + " / " + LevelRepository.getPageCount(LEVELS_PER_PAGE) + " 页",
+		drawCenteredText(g, L10n.get("level_page", mPageIndex + 1, LevelRepository.getPageCount(LEVELS_PER_PAGE)),
 				CARD_X, CARD_W, 202);
 
 		int startIndex = mPageIndex * LEVELS_PER_PAGE;
@@ -81,14 +82,14 @@ public class LevelSelectState extends State {
 			drawLevelButton(g, i);
 		}
 
-		drawPageButton(g, PREV_BTN_X, "上一页", mPageIndex > 0);
-		drawPageButton(g, NEXT_BTN_X, "下一页", mPageIndex < getLastPageIndex());
+		drawPageButton(g, PREV_BTN_X, L10n.get("level_prev_page"), mPageIndex > 0);
+		drawPageButton(g, NEXT_BTN_X, L10n.get("level_next_page"), mPageIndex < getLastPageIndex());
 
 		g.setColor(Color.rgb(106, 191, 245));
 		g.fillRoundRect(BACK_BTN_X, PAGE_BTN_Y, BACK_BTN_W, PAGE_BTN_H, 18);
 		g.setFont(Typeface.DEFAULT_BOLD, 28);
 		g.setColor(Color.rgb(16, 56, 90));
-		drawCenteredText(g, "返回主菜单", BACK_BTN_X, BACK_BTN_W, PAGE_BTN_Y + 38);
+		drawCenteredText(g, L10n.get("level_back_menu"), BACK_BTN_X, BACK_BTN_W, PAGE_BTN_Y + 38);
 	}
 
 	private void drawLevelButton(Painter g, int levelIndex) {
@@ -119,21 +120,21 @@ public class LevelSelectState extends State {
 			// Lock icon and dimmed text
 			g.setFont(Typeface.DEFAULT_BOLD, 30);
 			g.setColor(Color.argb(160, 200, 200, 200));
-			drawCenteredText(g, "🔒 第 " + (levelIndex + 1) + " 关", left, LEVEL_BTN_W, top + 40);
+			drawCenteredText(g, L10n.get("level_locked", levelIndex + 1), left, LEVEL_BTN_W, top + 40);
 
 			g.setFont(Typeface.SANS_SERIF, 18);
 			g.setColor(Color.argb(100, 180, 180, 180));
-			drawCenteredText(g, "目标分数 " + config.targetScore, left, LEVEL_BTN_W, top + 70);
-			drawCenteredText(g, "敌鱼 " + config.enemyCount + " 条", left, LEVEL_BTN_W, top + 94);
+			drawCenteredText(g, L10n.get("level_target_score", config.targetScore), left, LEVEL_BTN_W, top + 70);
+			drawCenteredText(g, L10n.get("level_enemy_count", config.enemyCount), left, LEVEL_BTN_W, top + 94);
 		} else {
 			g.setFont(Typeface.DEFAULT_BOLD, 30);
 			g.setColor(Color.rgb(16, 56, 90));
-			drawCenteredText(g, "第 " + (levelIndex + 1) + " 关", left, LEVEL_BTN_W, top + 40);
+			drawCenteredText(g, L10n.get("level_number", levelIndex + 1), left, LEVEL_BTN_W, top + 40);
 
 			g.setFont(Typeface.SANS_SERIF, 18);
 			g.setColor(Color.rgb(35, 83, 126));
-			drawCenteredText(g, "目标分数 " + config.targetScore, left, LEVEL_BTN_W, top + 70);
-			drawCenteredText(g, "敌鱼 " + config.enemyCount + " 条", left, LEVEL_BTN_W, top + 94);
+			drawCenteredText(g, L10n.get("level_target_score", config.targetScore), left, LEVEL_BTN_W, top + 70);
+			drawCenteredText(g, L10n.get("level_enemy_count", config.enemyCount), left, LEVEL_BTN_W, top + 94);
 		}
 	}
 

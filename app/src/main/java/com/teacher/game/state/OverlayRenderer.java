@@ -2,6 +2,7 @@ package com.teacher.game.state;
 
 import com.teacher.fish.GameMainActivity;
 import com.teacher.framework.util.Painter;
+import com.teacher.game.state.L10n;
 
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -33,8 +34,8 @@ final class OverlayRenderer {
     static void drawPauseOverlay(Painter g) {
         g.setColor(Color.argb(168, 0, 0, 0));
         g.fillRect(0, 0, GameMainActivity.GAME_WIDTH, GameMainActivity.GAME_HEIGHT);
-        drawOverlayCard(g, "游戏已暂停", "可以继续挑战，也可以重新开始");
-        drawOverlayButtons(g, new String[]{"继续游戏", "重新开始", "返回菜单"});
+        drawOverlayCard(g, L10n.get("pause_title"), L10n.get("pause_desc"));
+        drawOverlayButtons(g, new String[]{L10n.get("pause_resume"), L10n.get("pause_restart"), L10n.get("pause_menu")});
     }
 
     static void drawRoundEndOverlay(Painter g, String title, String subtitle,

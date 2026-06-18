@@ -1,5 +1,7 @@
 package com.teacher.game.state;
 
+import com.teacher.game.state.L10n;
+
 final class ModeRules {
 
 	enum RoundEndAction {
@@ -39,15 +41,15 @@ final class ModeRules {
 
 	String[] getRoundEndButtonLabels(boolean didClearLevel, boolean hasNextLevel) {
 		if (mEndlessMode) {
-			return new String[] {"重新开始", "返回菜单"};
+			return new String[] {L10n.get("result_restart"), L10n.get("result_menu")};
 		}
 		if (didClearLevel) {
 			if (hasNextLevel) {
-				return new String[] {"下一关", "重新开始", "返回菜单"};
+				return new String[] {L10n.get("result_next"), L10n.get("result_restart"), L10n.get("result_menu")};
 			}
-			return new String[] {"重新开始", "返回菜单"};
+			return new String[] {L10n.get("result_restart"), L10n.get("result_menu")};
 		}
-		return new String[] {"重试本关", "返回菜单"};
+		return new String[] {L10n.get("result_retry"), L10n.get("result_menu")};
 	}
 
 	RoundEndAction resolveRoundEndAction(int buttonIndex, boolean didClearLevel, boolean hasNextLevel) {
@@ -88,41 +90,41 @@ final class ModeRules {
 
 	String getRoundEndTitle(boolean didClearLevel, boolean hasNextLevel) {
 		if (mEndlessMode) {
-			return "无尽结束";
+			return L10n.get("result_title_endless_over");
 		}
 		if (didClearLevel && hasNextLevel) {
-			return "本关完成";
+			return L10n.get("result_title_clear");
 		}
 		if (didClearLevel) {
-			return "全部通关";
+			return L10n.get("result_title_all_clear");
 		}
-		return "挑战失败";
+		return L10n.get("result_title_fail");
 	}
 
 	String getRoundEndSubtitle(int score, int nextLevelDisplayIndex, boolean didClearLevel, boolean hasNextLevel) {
 		if (mEndlessMode) {
-			return "本次得分 " + score + "，再来挑战更高分";
+			return L10n.get("result_desc_score", score);
 		}
 		if (didClearLevel && hasNextLevel) {
-			return "准备进入第 " + nextLevelDisplayIndex + " 关";
+			return L10n.get("result_desc_next", nextLevelDisplayIndex);
 		}
 		if (didClearLevel) {
-			return "恭喜完成全部关卡挑战";
+			return L10n.get("result_desc_all_clear");
 		}
-		return "再试一次，看看能不能拿到更高分";
+		return L10n.get("result_desc_retry");
 	}
 
 	String getModeLabel(int levelDisplayIndex) {
 		if (mEndlessMode) {
-			return "无尽模式";
+			return L10n.get("label_endless");
 		}
-		return "第" + levelDisplayIndex + "关";
+		return L10n.get("label_level_n", levelDisplayIndex);
 	}
 
 	String getScoreLabel(int score, int targetScore) {
 		if (mEndlessMode) {
-			return "分数 " + score;
+			return L10n.get("label_score", score);
 		}
-		return "分数 " + score + " / " + targetScore;
+		return L10n.get("label_score_target", score, targetScore);
 	}
 }

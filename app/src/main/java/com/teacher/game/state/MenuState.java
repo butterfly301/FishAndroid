@@ -11,7 +11,18 @@ import android.graphics.Typeface;
 import android.view.MotionEvent;
 
 public class MenuState extends State {
-	private static final String[] MENU_ITEMS = {"关卡模式", "无尽模式", "制作成员", "游戏设置", "成就", "退出游戏"};
+	private String[] mMenuItems;
+
+	private String[] getMenuItems() {
+		return new String[]{
+			L10n.get("menu_level_mode"),
+			L10n.get("menu_endless_mode"),
+			L10n.get("menu_credits"),
+			L10n.get("menu_settings"),
+			L10n.get("menu_achievements"),
+			L10n.get("menu_exit")
+		};
+	}
 	private static final int BUTTON_WIDTH = 320;
 	private static final int BUTTON_HEIGHT = 70;
 	private static final int BUTTON_LEFT = (GameMainActivity.GAME_WIDTH - BUTTON_WIDTH) / 2;
@@ -32,6 +43,7 @@ public class MenuState extends State {
 	public void init() {
 		Assets.stopMusic();
 		Assets.playMusic("MainMenuBGM.mp3", true);
+		mMenuItems = getMenuItems();
 	}
 
 	@Override
@@ -43,18 +55,21 @@ public class MenuState extends State {
 	public void render(Painter g) {
 		g.drawImage(Assets.menu, 0, 0);
 
+		String title = L10n.get("menu_title");
+		String subtitle = L10n.get("menu_subtitle");
+
 		g.setColor(Color.argb(132, 6, 30, 60));
 		g.fillRoundRect(340, 54, 600, 150, 34);
 		g.setFont(Typeface.SANS_SERIF, 62);
 		g.setColor(Color.WHITE);
-		float titleWidth = g.measureText("深海大作战");
-		g.drawString("深海大作战", (GameMainActivity.GAME_WIDTH - (int)titleWidth) / 2, 116);
+		float titleWidth = g.measureText(title);
+		g.drawString(title, (GameMainActivity.GAME_WIDTH - (int)titleWidth) / 2, 116);
 		g.setFont(Typeface.SANS_SERIF, 24);
 		g.setColor(Color.argb(255, 205, 244, 255));
-		float subtitleWidth = g.measureText("选择模式开始挑战");
-		g.drawString("选择模式开始挑战", (GameMainActivity.GAME_WIDTH - (int)subtitleWidth) / 2, 170);
+		float subtitleWidth = g.measureText(subtitle);
+		g.drawString(subtitle, (GameMainActivity.GAME_WIDTH - (int)subtitleWidth) / 2, 170);
 
-		for (int i = 0; i < MENU_ITEMS.length; i++) {
+		for (int i = 0; i < mMenuItems.length; i++) {
 			int top = BUTTON_TOP + i * BUTTON_GAP;
 			int color = Color.argb(210, 255, 255, 255);
 			int shadow = Color.argb(78, 3, 26, 54);
@@ -66,14 +81,14 @@ public class MenuState extends State {
 
 			g.setFont(Typeface.SANS_SERIF, 30);
 			g.setColor(Color.rgb(12, 58, 93));
-			float textWidth = g.measureText(MENU_ITEMS[i]);
+			float textWidth = g.measureText(mMenuItems[i]);
 			int textX = BUTTON_LEFT + (int)((BUTTON_WIDTH - textWidth) / 2);
-			g.drawString(MENU_ITEMS[i], textX, top + 46);
+			g.drawString(mMenuItems[i], textX, top + 46);
 
 			if (i == 1) {
 				g.setFont(Typeface.SANS_SERIF, 20);
 				g.setColor(Color.argb(255, 230, 244, 255));
-				g.drawString("最高分：" + GameMainActivity.getEndlessHighScore(), BUTTON_LEFT + BUTTON_WIDTH + 28, top + 44);
+				g.drawString(L10n.get("menu_high_score", GameMainActivity.getEndlessHighScore()), BUTTON_LEFT + BUTTON_WIDTH + 28, top + 44);
 			}
 		}
 
@@ -87,12 +102,12 @@ public class MenuState extends State {
 
 		g.setFont(Typeface.SANS_SERIF, 18);
 		g.setColor(Color.WHITE);
-		g.drawString("操控模式", CONTROL_LABEL_X, CONTROL_PANEL_Y + 31);
+		g.drawString(L10n.get("menu_control_mode"), CONTROL_LABEL_X, CONTROL_PANEL_Y + 31);
 
 		int manualX = getControlOptionLeft(false);
 		int autoX = getControlOptionLeft(true);
-		drawControlOption(g, manualX, "手动", !autoMode);
-		drawControlOption(g, autoX, "自动", autoMode);
+		drawControlOption(g, manualX, L10n.get("menu_manual"), !autoMode);
+		drawControlOption(g, autoX, L10n.get("menu_auto"), autoMode);
 	}
 
 	private void drawControlOption(Painter g, int left, String label, boolean active) {
@@ -117,7 +132,7 @@ public class MenuState extends State {
 		int left = BUTTON_LEFT;
 		int right = left + BUTTON_WIDTH;
 		if (scaleX > left && scaleX < right) {
-			for (int i = 0; i < MENU_ITEMS.length; i++) {
+			for (int i = 0; i < mMenuItems.length; i++) {
 				int top = BUTTON_TOP + i * BUTTON_GAP;
 				int bottom = top + BUTTON_HEIGHT;
 				if (scaleY > top && scaleY < bottom) {

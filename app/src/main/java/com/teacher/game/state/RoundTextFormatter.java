@@ -2,6 +2,7 @@ package com.teacher.game.state;
 
 import com.teacher.fish.GameMainActivity;
 import com.teacher.game.model.LevelConfig;
+import com.teacher.game.state.L10n;
 
 final class RoundTextFormatter {
 
@@ -18,7 +19,7 @@ final class RoundTextFormatter {
 			LevelConfig levelConfig) {
 		String subtitle = modeRules.getRoundEndSubtitle(score, nextLevelDisplayIndex, didClearLevel, hasNextLevel);
 		if (stats != null && stats.comboPeak >= 2) {
-			subtitle += "  最高连击 x" + stats.comboPeak;
+			subtitle += "  " + L10n.get("stat_combo_peak", stats.comboPeak);
 		}
 		return subtitle;
 	}
@@ -28,22 +29,22 @@ final class RoundTextFormatter {
 		int prevHigh = endlessMode ? GameMainActivity.getEndlessHighScore() : GameMainActivity.getHighScore();
 		String highScoreNote = "";
 		if (!endlessMode && didClearWithScore(score, config)) {
-			highScoreNote = "  达成目标！";
+			highScoreNote = L10n.get("stat_goal_achieved");
 		} else if (endlessMode && score > prevHigh && prevHigh > 0) {
-			highScoreNote = "  新纪录！";
+			highScoreNote = L10n.get("stat_new_record");
 		}
 
 		// Stats rows
 		java.util.ArrayList<String> rows = new java.util.ArrayList<String>();
-		rows.add("得　分    " + score + "  " + highScoreNote);
-		rows.add("吃掉鱼  " + stats.fishEaten + " 条");
-		rows.add("最高连击 x" + stats.comboPeak);
-		rows.add("收集道具 " + stats.powerUpsCollected + " 个");
-		rows.add("同伴助攻 " + stats.companionAssists + " 次");
-		rows.add("存活时间 " + formatTime(stats.survivalTime));
+		rows.add(L10n.get("stat_score", score, highScoreNote));
+		rows.add(L10n.get("stat_fish_eaten", stats.fishEaten));
+		rows.add(L10n.get("stat_combo_peak", stats.comboPeak));
+		rows.add(L10n.get("stat_powerups", stats.powerUpsCollected));
+		rows.add(L10n.get("stat_companion_assists", stats.companionAssists));
+		rows.add(L10n.get("stat_survival", formatTime(stats.survivalTime)));
 
 		if (config.timeLimit > 0) {
-			rows.add("时间限制 " + (int)config.timeLimit + " 秒");
+			rows.add(L10n.get("stat_time_limit", (int)config.timeLimit));
 		}
 
 		return rows.toArray(new String[rows.size()]);
@@ -57,6 +58,6 @@ final class RoundTextFormatter {
 		int total = (int) seconds;
 		int min = total / 60;
 		int sec = total % 60;
-		return min > 0 ? min + "分" + sec + "秒" : sec + "秒";
+		return min > 0 ? L10n.get("time_format_min_sec", min, sec) : L10n.get("time_format_sec", sec);
 	}
 }

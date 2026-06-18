@@ -1,18 +1,24 @@
 package com.teacher.game.model;
 
+import com.teacher.game.state.L10n;
+
 public enum PowerUpType {
 
-	SPEED("加速", 5f),
-	SHIELD("护盾", 0f),
-	FREEZE("冰冻", 3f),
-	BOMB("炸弹", 0f),
-	LURE("吸引", 4f);
+	SPEED("powerup_speed", 5f),
+	SHIELD("powerup_shield", 0f),
+	FREEZE("powerup_freeze", 3f),
+	BOMB("powerup_bomb", 0f),
+	LURE("powerup_lure", 4f);
 
-	public final String label;
+	public final String l10nKey;
 	public final float duration;  // 持续秒数，0=瞬间效果
 
-	PowerUpType(String label, float duration) {
-		this.label = label;
+	public String getName() {
+		return L10n.get(l10nKey);
+	}
+
+	PowerUpType(String l10nKey, float duration) {
+		this.l10nKey = l10nKey;
 		this.duration = duration;
 	}
 }

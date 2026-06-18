@@ -3,6 +3,7 @@ package com.teacher.fish;
 
 
 import com.teacher.fish.Assets;
+import com.teacher.game.state.L10n;
 
 import android.app.Activity;
 import android.content.SharedPreferences;
@@ -33,6 +34,7 @@ public class GameMainActivity extends Activity {
 		super.onCreate(savedInstanceState);
 		
 		assets = getAssets();
+		L10n.init(this);
 		sGame = new GameView(this, GAME_WIDTH, GAME_HEIGHT);
 		setContentView(sGame);		
 	}

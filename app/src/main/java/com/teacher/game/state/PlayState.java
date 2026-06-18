@@ -18,10 +18,10 @@ import com.teacher.game.model.CompanionFish;
 import com.teacher.game.model.PowerUp;
 import com.teacher.game.model.PowerUpType;
 
-import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.MotionEvent;
+import com.teacher.game.state.L10n;
 
 public class PlayState extends State {
 
@@ -58,17 +58,15 @@ public class PlayState extends State {
 
 	private float mFlushTime;
 	private ArrayList<Sprite> mAirBubbleList;
-	private int mHighScore;
-	private int mEndlessHighScore;
-	private boolean mEndlessMode;
+	int mHighScore;
+	int mEndlessHighScore;
+	boolean mEndlessMode;
 	private android.graphics.Bitmap mPlayBackground;
 
 	private static final int IN_R = GameplayTuning.JOYSTICK_INNER_RADIUS;
 	private static final int IN_45 = GameplayTuning.JOYSTICK_INNER_DIAGONAL;
 	private static final int OUT_W = GameplayTuning.JOYSTICK_OUTER_RADIUS;
 	private static final int IN_W = GameplayTuning.JOYSTICK_INNER_HALF;
-	private static final int HUD_LEFT = 20;
-	private static final int HUD_TOP = 18;
 	private static final int MAX_POWERUPS = 3;
 	static final int COMPANION_CHARGE_TARGET = 6;
 
@@ -76,11 +74,11 @@ public class PlayState extends State {
 
 	int mCombo;
 	private float mComboTimer;
-	private float mComboScale;
+	float mComboScale;
 	RoundStats mStats;
 
 	// ---- Time limit ----
-	private float mTimeLimitTimer;
+	float mTimeLimitTimer;
 
 	// ---- Achievement stats (saved at round end) ----
 	private int mRoundFishEaten;
@@ -406,7 +404,7 @@ public class PlayState extends State {
 				GameMainActivity.GAME_HEIGHT);
 
 		mLayerManager.paint(g.getCanvas(), 0, 0);
-		drawCompanionMarker(g);
+		HudRenderer.drawCompanionMarker(g, this);
 
 		if (mTouchHandler.mTouchDown) {
 			g.drawImage(Assets.virjoy_outter, mTouchHandler.mTouchX-OUT_W, mTouchHandler.mTouchY-OUT_W, OUT_W*2, OUT_W*2);
@@ -435,13 +433,13 @@ public class PlayState extends State {
 			}
 		}
 
-		drawHud(g);
-		drawCombo(g);
+		HudRenderer.drawHud(g, this);
+		HudRenderer.drawCombo(g, this);
 
-		drawElement(g);
+		HudRenderer.drawElement(g, this);
 
 		if (mLureTimer > 0) {
-			drawLureAura(g);
+			HudRenderer.drawLureAura(g, this);
 		}
 
 		if (mGamePaused) {
@@ -467,7 +465,7 @@ public class PlayState extends State {
 			g.fillRect(0, 0, GameMainActivity.GAME_WIDTH, GameMainActivity.GAME_HEIGHT);
 		}
 
-		drawDebugButton(g);
+		HudRenderer.drawDebugButton(g);
 		if (mDebugPanelVisible) {
 			drawDebugPanel(g);
 		}
@@ -481,39 +479,6 @@ public class PlayState extends State {
 		}
 	}
 
-	private void drawCompanionMarker(Painter g) {
-		if (mCompanionFishList == null || mCompanionFishList.isEmpty()) {
-			return;
-		}
-		for (CompanionFish companion : mCompanionFishList) {
-			int centerX = companion.getX() + companion.getWidth() / 2;
-			int baseY = companion.getY() - 10;
-
-			// Smaller green inverted triangle marker.
-			g.setColor(Color.argb(228, 26, 220, 114));
-			g.fillRect(centerX - 6, baseY, 12, 3);
-			g.fillRect(centerX - 4, baseY + 3, 8, 3);
-			g.fillRect(centerX - 2, baseY + 6, 4, 3);
-
-			// Subtle dark outline for readability on bright backgrounds.
-			g.setColor(Color.argb(180, 8, 62, 40));
-			g.fillRect(centerX - 7, baseY - 1, 1, 10);
-			g.fillRect(centerX + 6, baseY - 1, 1, 10);
-		}
-	}
-
-	private void drawDebugButton(Painter g) {
-		int left = GameMainActivity.GAME_WIDTH - DEBUG_BTN_SIZE - DEBUG_BTN_MARGIN;
-		int top = GameMainActivity.GAME_HEIGHT - DEBUG_BTN_SIZE - DEBUG_BTN_MARGIN;
-		g.setColor(Color.argb(220, 15, 44, 72));
-		g.fillRoundRect(left, top, DEBUG_BTN_SIZE, DEBUG_BTN_SIZE, 14);
-		g.setColor(Color.rgb(255, 214, 96));
-		g.fillRoundRect(left + 4, top + 4, DEBUG_BTN_SIZE - 8, DEBUG_BTN_SIZE - 8, 12);
-		g.setFont(Typeface.DEFAULT_BOLD, 18);
-		g.setColor(Color.rgb(12, 58, 93));
-		g.drawString("调", left + 20, top + 37);
-	}
-
 	private void drawDebugPanel(Painter g) {
 		g.setColor(Color.argb(188, 0, 0, 0));
 		g.fillRect(0, 0, GameMainActivity.GAME_WIDTH, GameMainActivity.GAME_HEIGHT);
@@ -525,11 +490,11 @@ public class PlayState extends State {
 		g.fillRoundRect(DEBUG_PANEL_X + 16, DEBUG_PANEL_Y + 16, DEBUG_PANEL_W - 32, 76, 16);
 		g.setColor(Color.WHITE);
 		g.setFont(Typeface.DEFAULT_BOLD, 36);
-		g.drawString("调试面板", DEBUG_PANEL_X + 26, DEBUG_PANEL_Y + 66);
+		g.drawString(L10n.get("debug_title"), DEBUG_PANEL_X + 26, DEBUG_PANEL_Y + 66);
 
 		g.setFont(Typeface.SANS_SERIF, 28);
 		g.setColor(Color.argb(255, 229, 245, 255));
-		g.drawString("游戏速度", DEBUG_PANEL_X + 26, DEBUG_PANEL_Y + 134);
+		g.drawString(L10n.get("debug_speed"), DEBUG_PANEL_X + 26, DEBUG_PANEL_Y + 134);
 		g.drawString(String.format("%.2fx", mDebugGameSpeed), DEBUG_PANEL_X + 210, DEBUG_PANEL_Y + 134);
 
 		int decX = DEBUG_PANEL_X + 26;
@@ -550,15 +515,15 @@ public class PlayState extends State {
 
 		// "生成1条基础鱼"
 		int fishY = DEBUG_PANEL_Y + 230;
-		drawSpawnButton(g, spawnX, fishY, DEBUG_SPAWN_W, spawnBtnH, "生成1条基础鱼");
+		drawSpawnButton(g, spawnX, fishY, DEBUG_SPAWN_W, spawnBtnH, L10n.get("debug_spawn_fish"));
 
 		// "生成一个泡泡"
 		int powerUpY = fishY + spawnBtnH + spawnGap;
-		drawSpawnButton(g, spawnX, powerUpY, DEBUG_SPAWN_W, spawnBtnH, "生成一个泡泡");
+		drawSpawnButton(g, spawnX, powerUpY, DEBUG_SPAWN_W, spawnBtnH, L10n.get("debug_spawn_powerup"));
 
 		// "生成一个同伴"
 		int companionY = powerUpY + spawnBtnH + spawnGap;
-		drawSpawnButton(g, spawnX, companionY, DEBUG_SPAWN_W, spawnBtnH, "生成一个同伴");
+		drawSpawnButton(g, spawnX, companionY, DEBUG_SPAWN_W, spawnBtnH, L10n.get("debug_spawn_companion"));
 
 		int closeX = DEBUG_PANEL_X + DEBUG_PANEL_W - DEBUG_CLOSE_W - 18;
 		int closeY = DEBUG_PANEL_Y + DEBUG_PANEL_H - DEBUG_CLOSE_H - 16;
@@ -566,8 +531,9 @@ public class PlayState extends State {
 		g.fillRoundRect(closeX, closeY, DEBUG_CLOSE_W, DEBUG_CLOSE_H, 12);
 		g.setColor(Color.rgb(16, 56, 90));
 		g.setFont(Typeface.DEFAULT_BOLD, 28);
-		float closeTextW = g.measureText("关闭");
-		g.drawString("关闭", closeX + (int)((DEBUG_CLOSE_W - closeTextW) / 2), closeY + 37);
+		String closeLabel = L10n.get("debug_close");
+		float closeTextW = g.measureText(closeLabel);
+		g.drawString(closeLabel, closeX + (int)((DEBUG_CLOSE_W - closeTextW) / 2), closeY + 37);
 	}
 
 	private void drawSpawnButton(Painter g, int x, int y, int w, int h, String label) {
@@ -577,161 +543,6 @@ public class PlayState extends State {
 		g.setFont(Typeface.DEFAULT_BOLD, 26);
 		float textW = g.measureText(label);
 		g.drawString(label, x + (int)((w - textW) / 2), y + (int)(h * 0.72f));
-	}
-
-	private void drawLureAura(Painter g) {
-		int cx = mMyFish.getX() + mMyFish.getWidth() / 2;
-		int cy = mMyFish.getY() + mMyFish.getHeight() / 2;
-		float pulse = (float)(Math.sin(System.nanoTime() / 200_000_000.0) * 0.25 + 0.75);
-		int alpha = (int)(60 * pulse);
-		int baseR = 90 + (int)(20 * pulse);
-		Canvas canvas = g.getCanvas();
-		android.graphics.Paint p = new android.graphics.Paint(
-				android.graphics.Paint.ANTI_ALIAS_FLAG);
-		p.setStyle(android.graphics.Paint.Style.STROKE);
-		p.setStrokeWidth(2.5f);
-		for (int i = 0; i < 3; i++) {
-			p.setColor(Color.argb(alpha - i * 12, 255, 105, 180));
-			canvas.drawCircle(cx, cy, baseR + i * 25, p);
-		}
-	}
-
-	private void drawElement(Painter g) {
-		if (mMyFish.mNonceState == Fish.DIE)
-			g.drawImage(Assets.sorry, 555, 310);
-		if (mLife <= 0)
-			g.drawImage(Assets.gameover, 520, 310);
-		if (didClearLevel()) {
-			for (int i=0;i<4;i++) {
-				if (mMyFish.mStartTime % 4 != i)
-					g.drawImage(Assets.pass, i*25, 0, 554+45*i, 310, 25, 25);
-				else
-					g.drawImage(Assets.pass, i*25, 0, 554+45*i, 320, 25, 25);
-			}
-		}
-	}
-
-	private void drawHud(Painter g) {
-		g.setColor(Color.argb(150, 4, 29, 58));
-		g.fillRoundRect(HUD_LEFT, HUD_TOP, 1240, 74, 28);
-
-		g.setFont(Typeface.SANS_SERIF, 28);
-		g.setColor(Color.WHITE);
-		if (mEndlessMode) {
-			g.drawString(getModeLabel(), 48, 65);
-			g.drawString("最高分：" + mEndlessHighScore, 220, 65);
-			g.drawString("生命 " + mLife, 1010, 65);
-
-			g.setFont(Typeface.SANS_SERIF, 24);
-			g.setColor(Color.rgb(12, 58, 93));
-			float scoreWidth = g.measureText(getScoreLabel());
-			g.drawString(getScoreLabel(), (GameMainActivity.GAME_WIDTH - (int)scoreWidth) / 2, 56);
-		}else {
-			g.drawString(getModeLabel(), 48, 65);
-			g.drawString("生命 " + mLife, 1010, 65);
-
-			g.setColor(Color.argb(120, 255, 255, 255));
-			g.fillRoundRect(430, 34, 420, 24, 12);
-			int cappedScore = Math.min(mScore, mLevelConfig.targetScore);
-			int progressWidth = mLevelConfig.targetScore > 0
-					? (int)(420f * cappedScore / mLevelConfig.targetScore)
-					: 0;
-			g.setColor(Color.rgb(255, 195, 82));
-			g.fillRoundRect(430, 34, progressWidth, 24, 12);
-
-			g.setFont(Typeface.SANS_SERIF, 24);
-			g.setColor(Color.rgb(12, 58, 93));
-			g.drawString(getScoreLabel(), 500, 56);
-		}
-
-		g.setColor(Color.argb(220, 255, 255, 255));
-		g.fillRoundRect(PAUSE_BTN_X, PAUSE_BTN_Y, PAUSE_BTN_SIZE, PAUSE_BTN_SIZE, 16);
-		g.setColor(Color.rgb(20, 72, 116));
-		g.fillRect(PAUSE_BTN_X + 14, PAUSE_BTN_Y + 10, 6, 28);
-		g.fillRect(PAUSE_BTN_X + 28, PAUSE_BTN_Y + 10, 6, 28);
-
-		drawTimeLimit(g);
-		drawPowerUpIndicators(g);
-		drawCompanionIndicators(g);
-	}
-
-	private void drawTimeLimit(Painter g) {
-		if (mLevelConfig.timeLimit <= 0 || mTimeLimitTimer <= 0) {
-			return;
-		}
-		int barX = 430;
-		int barY = 64;
-		int barW = 420;
-		int barH = 18;
-		float ratio = mTimeLimitTimer / mLevelConfig.timeLimit;
-		int fillW = (int)(barW * ratio);
-
-		// Background
-		g.setColor(Color.argb(120, 0, 0, 0));
-		g.fillRoundRect(barX, barY, barW, barH, 9);
-
-		// Fill — red when < 25%, yellow when < 50%
-		int color = ratio < 0.25f ? Color.rgb(255, 50, 50)
-				: ratio < 0.5f ? Color.rgb(255, 200, 50)
-				: Color.rgb(100, 200, 255);
-		g.setColor(color);
-		g.fillRoundRect(barX + 1, barY + 1, Math.max(fillW - 2, 0), barH - 2, 8);
-
-		// Time text
-		g.setFont(Typeface.SANS_SERIF, 20);
-		g.setColor(Color.WHITE);
-		int sec = (int) mTimeLimitTimer;
-		g.drawString(sec + "s", barX + barW / 2 - 14, barY + 22);
-	}
-
-	private void drawCompanionIndicators(Painter g) {
-		int cardX = 40;
-		int cardY = 88;
-		g.setColor(Color.argb(168, 6, 34, 66));
-		g.fillRoundRect(cardX, cardY, 320, 54, 16);
-
-		g.setFont(Typeface.SANS_SERIF, 22);
-		g.setColor(Color.WHITE);
-		g.drawString("同伴 " + mCompanionFishList.size() + " 只", cardX + 14, cardY + 35);
-		g.setColor(Color.argb(120, 255, 255, 255));
-		g.fillRoundRect(cardX + 168, cardY + 20, 136, 14, 8);
-		int w = (int)(136f * mCompanionCharge / COMPANION_CHARGE_TARGET);
-		g.setColor(Color.rgb(255, 198, 84));
-		g.fillRoundRect(cardX + 168, cardY + 20, w, 14, 8);
-	}
-
-	// ================================================================
-	//  Combo rendering
-	// ================================================================
-
-	private void drawCombo(Painter g) {
-		if (mCombo < 2) return;
-
-		int[] comboColors = {
-			Color.rgb(255, 215, 0),    // gold  — combo 2
-			Color.rgb(255, 165, 0),    // orange — combo 3
-			Color.rgb(255, 69, 0),     // red-orange — combo 4
-			Color.rgb(200, 50, 255)    // purple — combo 5
-		};
-		int ci = Math.min(mCombo - 2, comboColors.length - 1);
-
-		// Combo indicator between score area and life indicator
-		int comboX = 800;
-		int comboY = 65;
-
-		// Animated scale pulse when combo increases
-		int fontSize = (int) (28 * mComboScale);
-		int offset = (int) (2 * mComboScale);
-		g.setFont(Typeface.DEFAULT_BOLD, fontSize);
-		// Shadow for readability
-		g.setColor(Color.argb(120, 0, 0, 0));
-		g.drawString("连击 x" + mCombo, comboX + offset, comboY + offset);
-		// Glow-ish outline
-		g.setColor(Color.argb(80, 255, 255, 255));
-		g.drawString("连击 x" + mCombo, comboX + offset / 2, comboY + offset / 2);
-		// Main text
-		g.setColor(comboColors[ci]);
-		g.drawString("连击 x" + mCombo, comboX, comboY);
 	}
 
 	private void updateCompanion() {
@@ -973,53 +784,6 @@ public class PlayState extends State {
 		}
 	}
 
-	private void drawPowerUpIndicators(Painter g) {
-		int x = 460;
-		int y = 20;
-		int barH = 32;
-
-		if (mSpeedTimer > 0) {
-			float ratio = mSpeedTimer / PowerUpType.SPEED.duration;
-			int w = (int) (140 * ratio);
-			g.setColor(Color.argb(180, 255, 215, 0));
-			g.fillRoundRect(x, y, w, barH, 6);
-			g.setColor(Color.argb(220, 255, 255, 255));
-			g.setFont(Typeface.SANS_SERIF, 22);
-			g.drawString("加速", x + 8, y + 24);
-			x += 158;
-		}
-
-		if (mFreezeTimer > 0) {
-			float ratio = mFreezeTimer / PowerUpType.FREEZE.duration;
-			int w = (int) (140 * ratio);
-			g.setColor(Color.argb(180, 0, 200, 255));
-			g.fillRoundRect(x, y, w, barH, 6);
-			g.setColor(Color.argb(220, 255, 255, 255));
-			g.setFont(Typeface.SANS_SERIF, 22);
-			g.drawString("冰冻", x + 8, y + 24);
-			x += 158;
-		}
-
-		if (mMyFish.mHasShield) {
-			g.setColor(Color.argb(180, 40, 130, 255));
-			g.fillRoundRect(x, y, 100, barH, 6);
-			g.setColor(Color.argb(220, 255, 255, 255));
-			g.setFont(Typeface.SANS_SERIF, 22);
-			g.drawString("护盾", x + 8, y + 24);
-			x += 118;
-		}
-
-		if (mLureTimer > 0) {
-			float ratio = mLureTimer / PowerUpType.LURE.duration;
-			int w = (int) (140 * ratio);
-			g.setColor(Color.argb(180, 255, 105, 180));
-			g.fillRoundRect(x, y, w, barH, 6);
-			g.setColor(Color.argb(220, 255, 255, 255));
-			g.setFont(Typeface.SANS_SERIF, 22);
-			g.drawString("吸引", x + 8, y + 24);
-		}
-	}
-
 	double distance(int x1, int y1, int x2, int y2) {
 		int dx = x1 - x2;
 		int dy = y1 - y2;
@@ -1226,11 +990,11 @@ public class PlayState extends State {
 		}
 	}
 
-	private String getModeLabel() {
+	String getModeLabel() {
 		return mModeRules.getModeLabel(mLevelConfig.index);
 	}
 
-	private String getScoreLabel() {
+	String getScoreLabel() {
 		return mModeRules.getScoreLabel(mScore, mLevelConfig.targetScore);
 	}
 

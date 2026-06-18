@@ -3,6 +3,9 @@ package com.teacher.game.state;
 import com.teacher.fish.Assets;
 import com.teacher.fish.GameMainActivity;
 import com.teacher.framework.util.Painter;
+import com.teacher.game.model.AchievementConfig;
+import com.teacher.game.model.AchievementRepository;
+import com.teacher.game.model.AchievementTracker;
 
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -10,16 +13,20 @@ import android.view.MotionEvent;
 
 public class AchievementState extends State {
 
-	private static final String[][] ACHIEVEMENTS = {
-		{"大鱼吃小鱼", "累计吃掉 100 条鱼"},
-		{"连击大师",    "单局连击达到 5"},
-		{"道具收藏家",  "累计收集 30 个道具"},
-		{"初出茅庐",    "通关第 1 关"},
-		{"关卡征服者",  "解锁全部 100 关"},
-	};
+	private static final int PANEL_X = 140;
+	private static final int PANEL_W = 1000;
+	private static final int PANEL_Y = 20;
+	private static final int PANEL_H = 660;
 
-	/** Thresholds for each achievement (index 0-4). */
-	private static final int[] THRESHOLDS = {100, 5, 30, 1, 99};
+	private static final int CARD_X = PANEL_X + 28;
+	private static final int CARD_W = PANEL_W - 56;
+	private static final int CARD_H = 50;
+	private static final int CARD_GAP = 6;
+	private static final int ROW_H = CARD_H + CARD_GAP;
+
+	private static final int FIRST_ROW_Y = 140;
+	private static final int TITLE_Y = 90;
+	private static final int BACK_BTN_Y = 685;
 
 	@Override
 	public void init() {
@@ -33,101 +40,108 @@ public class AchievementState extends State {
 	public void render(Painter g) {
 		g.drawImage(Assets.menu, 0, 0);
 
+		// Background panel
 		g.setColor(Color.argb(180, 6, 32, 64));
-		g.fillRoundRect(240, 50, 800, 620, 34);
+		g.fillRoundRect(PANEL_X, PANEL_Y, PANEL_W, PANEL_H, 28);
 
+		// Title field
 		g.setColor(Color.argb(130, 255, 255, 255));
-		g.fillRoundRect(268, 74, 744, 80, 28);
+		g.fillRoundRect(PANEL_X + 28, PANEL_Y + 44, PANEL_W - 56, 68, 24);
 
-		g.setFont(Typeface.DEFAULT_BOLD, 40);
+		g.setFont(Typeface.DEFAULT_BOLD, 38);
 		g.setColor(Color.WHITE);
-		drawCenteredText(g, "成就列表", 240, 800, 128);
+		drawCenteredText(g, L10n.get("ach_title"), PANEL_X, PANEL_W, TITLE_Y);
 
-		int startY = 190;
-		for (int i = 0; i < ACHIEVEMENTS.length; i++) {
-			drawAchievementRow(g, i, startY + i * 84);
+		// Achievement rows — driven by AchievementRepository
+		int count = AchievementRepository.getCount();
+		for (int i = 0; i < count; i++) {
+			drawAchievementRow(g, i);
 		}
 
 		// Back button
-		int btnW = 300;
-		int btnH = 56;
-		int btnX = (GameMainActivity.GAME_WIDTH - btnW) / 2;
-		int btnY = 634;
+		int backBtnW = 300;
+		int backBtnH = 50;
+		int backBtnX = (GameMainActivity.GAME_WIDTH - backBtnW) / 2;
 		g.setColor(Color.rgb(106, 191, 245));
-		g.fillRoundRect(btnX, btnY, btnW, btnH, 18);
-		g.setFont(Typeface.DEFAULT_BOLD, 28);
+		g.fillRoundRect(backBtnX, BACK_BTN_Y, backBtnW, backBtnH, 18);
+		g.setFont(Typeface.DEFAULT_BOLD, 26);
 		g.setColor(Color.rgb(16, 56, 90));
-		drawCenteredText(g, "返回主菜单", btnX, btnW, btnY + 38);
+		drawCenteredText(g, L10n.get("ach_back"), backBtnX, backBtnW, BACK_BTN_Y + 34);
 	}
 
-	private void drawAchievementRow(Painter g, int index, int y) {
-		boolean earned = isAchievementEarned(index);
-		int progress = getAchievementProgress(index);
-		int threshold = THRESHOLDS[index];
-		String name = ACHIEVEMENTS[index][0];
-		String desc = ACHIEVEMENTS[index][1];
+	private void drawAchievementRow(Painter g, int index) {
+		AchievementConfig config = AchievementRepository.get(index);
+		int y = FIRST_ROW_Y + index * ROW_H;
+		boolean earned = isAchievementEarned(config);
+		int progress = getAchievementProgress(config);
+		int threshold = config.threshold;
+		String name = config.getName();
+		String desc = config.getDesc();
 
 		// Card background
-		int cardX = 268;
-		int cardW = 744;
-
 		g.setColor(earned
 				? Color.argb(90, 255, 215, 0)
 				: Color.argb(55, 255, 255, 255));
-		g.fillRoundRect(cardX, y, cardW, 74, 16);
+		g.fillRoundRect(CARD_X, y, CARD_W, CARD_H, 12);
 
-		// Achievement icon placeholder
-		g.setFont(Typeface.DEFAULT_BOLD, 30);
+		// Achievement icon (✓ / ○)
+		g.setFont(Typeface.DEFAULT_BOLD, 24);
 		g.setColor(earned ? Color.rgb(255, 215, 0) : Color.argb(120, 200, 200, 200));
-		g.drawString(earned ? "✓" : "○", cardX + 18, y + 48);
+		g.drawString(earned ? "\u2713" : "\u25CB", CARD_X + 14, y + 34);
 
 		// Name
-		g.setFont(Typeface.DEFAULT_BOLD, 26);
+		g.setFont(Typeface.DEFAULT_BOLD, 22);
 		g.setColor(earned ? Color.rgb(255, 215, 0) : Color.argb(220, 255, 255, 255));
-		g.drawString(name, cardX + 60, y + 32);
+		g.drawString(name, CARD_X + 48, y + 24);
 
 		// Description
-		g.setFont(Typeface.SANS_SERIF, 20);
+		g.setFont(Typeface.SANS_SERIF, 17);
 		g.setColor(earned ? Color.argb(255, 255, 240, 190) : Color.argb(180, 200, 220, 240));
-		g.drawString(desc, cardX + 60, y + 60);
+		g.drawString(desc, CARD_X + 48, y + 44);
 
-		// Progress bar (only if not earned)
+		// Right side: progress bar (unearned) or badge (earned)
+		int rightX = CARD_X + CARD_W - 20;
+
 		if (!earned) {
-			int barX = cardX + 480;
-			int barY = y + 24;
-			int barW = 220;
-			int barH = 14;
+			int barX = rightX - 200;
+			int barY = y + 12;
+			int barW = 200;
+			int barH = 12;
 			int fillW = (int)(barW * Math.min((float)progress / threshold, 1.0f));
 
 			g.setColor(Color.argb(80, 0, 0, 0));
-			g.fillRoundRect(barX, barY, barW, barH, 7);
-			g.setColor(Color.rgb(255, 198, 84));
-			g.fillRoundRect(barX, barY, fillW, barH, 7);
+			g.fillRoundRect(barX, barY, barW, barH, 6);
+			if (fillW > 0) {
+				g.setColor(Color.rgb(255, 198, 84));
+				g.fillRoundRect(barX, barY, fillW, barH, 6);
+			}
 
-			g.setFont(Typeface.SANS_SERIF, 18);
+			g.setFont(Typeface.SANS_SERIF, 15);
 			g.setColor(Color.argb(180, 200, 220, 240));
-			g.drawString(progress + "/" + threshold, barX + barW / 2 - 24, barY + 34);
+			g.drawString(progress + "/" + threshold, barX + barW / 2 - 20, barY + 26);
 		} else {
-			// Badge: "已达成"
-			g.setFont(Typeface.DEFAULT_BOLD, 22);
+			g.setFont(Typeface.DEFAULT_BOLD, 18);
 			g.setColor(Color.rgb(255, 215, 0));
-			int badgeX = cardX + 720;
-			g.drawString("已达成", badgeX - 40, y + 48);
+			String badge = L10n.get("ach_unlocked");
+			float badgeW = g.measureText(badge);
+			g.drawString(badge, rightX - (int)badgeW, y + 34);
 		}
 	}
 
-	private boolean isAchievementEarned(int index) {
-		return getAchievementProgress(index) >= THRESHOLDS[index];
+	private static boolean isAchievementEarned(AchievementConfig config) {
+		return getAchievementProgress(config) >= config.threshold;
 	}
 
-	private int getAchievementProgress(int index) {
-		switch (index) {
-			case 0: return GameMainActivity.getFishEaten();
-			case 1: return Math.min(GameMainActivity.getComboPeak(), THRESHOLDS[1]);
-			case 2: return GameMainActivity.getPowerUpsCollected();
-			case 3: return GameMainActivity.getUnlockedLevel() >= 1 ? 1 : 0;
-			case 4: return Math.min(GameMainActivity.getUnlockedLevel(), THRESHOLDS[4]);
-			default: return 0;
+	private static int getAchievementProgress(AchievementConfig config) {
+		switch (config.tracker) {
+			case FISH_EATEN:           return GameMainActivity.getFishEaten();
+			case COMBO_PEAK:           return Math.min(GameMainActivity.getComboPeak(), config.threshold);
+			case POWERUPS_COLLECTED:   return GameMainActivity.getPowerUpsCollected();
+			case UNLOCKED_LEVEL_BOOL:  return GameMainActivity.getUnlockedLevel() >= config.threshold ? 1 : 0;
+			case UNLOCKED_LEVEL:       return Math.min(GameMainActivity.getUnlockedLevel(), config.threshold);
+			case HIGH_SCORE:           return Math.min(GameMainActivity.getHighScore(), config.threshold);
+			case ENDLESS_HIGH_SCORE:   return Math.min(GameMainActivity.getEndlessHighScore(), config.threshold);
+			default:                   return 0;
 		}
 	}
 
@@ -142,12 +156,11 @@ public class AchievementState extends State {
 		if (e.getAction() != MotionEvent.ACTION_UP) {
 			return true;
 		}
-		int btnW = 300;
-		int btnH = 56;
-		int btnX = (GameMainActivity.GAME_WIDTH - btnW) / 2;
-		int btnY = 634;
-		if (scaleX >= btnX && scaleX <= btnX + btnW
-				&& scaleY >= btnY && scaleY <= btnY + btnH) {
+		int backBtnW = 300;
+		int backBtnH = 50;
+		int backBtnX = (GameMainActivity.GAME_WIDTH - backBtnW) / 2;
+		if (scaleX >= backBtnX && scaleX <= backBtnX + backBtnW
+				&& scaleY >= BACK_BTN_Y && scaleY <= BACK_BTN_Y + backBtnH) {
 			setCurrentState(new MenuState());
 			return true;
 		}
