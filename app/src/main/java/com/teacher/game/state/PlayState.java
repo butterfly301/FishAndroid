@@ -61,6 +61,7 @@ public class PlayState extends State {
 	private int mHighScore;
 	private int mEndlessHighScore;
 	private boolean mEndlessMode;
+	private android.graphics.Bitmap mPlayBackground;
 
 	private static final int IN_R = GameplayTuning.JOYSTICK_INNER_RADIUS;
 	private static final int IN_45 = GameplayTuning.JOYSTICK_INNER_DIAGONAL;
@@ -75,7 +76,20 @@ public class PlayState extends State {
 
 	int mCombo;
 	private float mComboTimer;
+	private float mComboScale;
 	RoundStats mStats;
+
+	// ---- Time limit ----
+	private float mTimeLimitTimer;
+
+	// ---- Achievement stats (saved at round end) ----
+	private int mRoundFishEaten;
+	private int mRoundPowerUpsCollected;
+
+	// ---- Visual effects ----
+	ArrayList<ScorePopup> mScorePopups;
+	ArrayList<Particle> mParticles;
+	private float mHitFlashTimer;
 
 	// Drawing constants shared with TouchHandler (used by drawDebugButton/Panel and drawHud)
 	private static final int PAUSE_BTN_X = 1182;
@@ -119,10 +133,18 @@ public class PlayState extends State {
 		mScore = 0;
 		mCombo = 0;
 		mComboTimer = 0;
+		mComboScale = 1.0f;
 		mStats = new RoundStats();
+		mScorePopups = new ArrayList<ScorePopup>();
+		mParticles = new ArrayList<Particle>();
+		mHitFlashTimer = 0;
+		mTimeLimitTimer = mLevelConfig.timeLimit;
+		mRoundFishEaten = 0;
+		mRoundPowerUpsCollected = 0;
 		mHighScore = GameMainActivity.getHighScore();
 		mEndlessHighScore = GameMainActivity.getEndlessHighScore();
 		mLevelConfig = LevelRepository.getLevel(mLevelIndex);
+		mPlayBackground = Assets.getPlayBackground(mLevelIndex, mEndlessMode);
 		mAutoMode = GameMainActivity.isAutoMode();
 		mAutoPilot = new AutoPilot();
 		mTouchHandler = new TouchHandler(this);
@@ -166,7 +188,7 @@ public class PlayState extends State {
 		mOtherFish = new ArrayList<Fish>();
 		for (int i=0;i<mLevelConfig.enemyCount;i++) {
 			Fish f  = new Fish(Assets.suergeonfish, 42, 24, Fish.SMALL, Fish.SWIML);
-			f.setSpeedBonus(mLevelConfig.speedBonus);
+			prepareEnemyFish(f, Fish.SMALL);
 			f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
 			mOtherFish.add(f);
 		}
@@ -262,9 +284,10 @@ public class PlayState extends State {
 			updateFishAI();
 			setOtherFishPosition();
 
-			// Power-up spawning
+			// Power-up spawning (drop rate from level config)
 			if (!isRoundFinished() && mPowerUps.size() < MAX_POWERUPS
-					&& RandomNumberGenerator.getRandInt(60) == 0) {
+					&& mLevelConfig.powerUpDropChance > 0
+					&& RandomNumberGenerator.getRandInt(mLevelConfig.powerUpDropChance) == 0) {
 				spawnPowerUp();
 			}
 
@@ -293,6 +316,34 @@ public class PlayState extends State {
 		}else if (mTouchHandler.mTouchDown) {
 			mMyFish.movePress(mTouchHandler.mDX, mTouchHandler.mDY);
 		}
+
+		// ---- Visual effects update ----
+		mComboScale += (1.0f - mComboScale) * 0.12f;
+		for (int i = mScorePopups.size() - 1; i >= 0; i--) {
+			mScorePopups.get(i).update();
+			if (mScorePopups.get(i).isDead()) {
+				mScorePopups.remove(i);
+			}
+		}
+		for (int i = mParticles.size() - 1; i >= 0; i--) {
+			mParticles.get(i).update();
+			if (mParticles.get(i).isDead()) {
+				mParticles.remove(i);
+			}
+		}
+
+		if (mHitFlashTimer > 0) {
+			mHitFlashTimer -= effectiveDelta;
+			if (mHitFlashTimer < 0) mHitFlashTimer = 0;
+		}
+
+		// Time limit
+		if (mLevelConfig.timeLimit > 0 && !isRoundFinished()) {
+			mTimeLimitTimer -= effectiveDelta;
+			if (mTimeLimitTimer < 0) {
+				mTimeLimitTimer = 0;
+			}
+		}
 	}
 
 	private void setOtherFishPosition() {
@@ -302,8 +353,7 @@ public class PlayState extends State {
 			}
 			f.update();
 		if (!isOnScreen(f)) {
-				f.setSize(randomFishSize());
-				f.setSpeedBonus(mLevelConfig.speedBonus);
+				prepareEnemyFish(f, randomFishSize());
 				assignFishBehavior(f);
 				if (RandomNumberGenerator.getRandInt(10) > 5) {
 					f.setPosition(-f.getWidth(),
@@ -348,7 +398,7 @@ public class PlayState extends State {
 
 	@Override
 	public void render(Painter g) {
-		g.drawImage(Assets.background, 0, 0);
+		g.drawImage(mPlayBackground != null ? mPlayBackground : Assets.background, 0, 0);
 
 		//mFloatGrassR.paint(g.getCanvas());
 		mLayerManager.setViewWindow(0, 0,
@@ -400,9 +450,9 @@ public class PlayState extends State {
 			boolean cleared = didClearLevel();
 			boolean hasNext = hasNextLevel();
 			String subtitle = RoundTextFormatter.buildRoundEndSubtitle(
-					mModeRules, mScore, mLevelConfig.index + 1, cleared, hasNext, mStats);
+					mModeRules, mScore, mLevelConfig.index + 1, cleared, hasNext, mStats, mLevelConfig);
 
-			String[] stats = RoundTextFormatter.buildRoundEndStats(mScore, mStats);
+			String[] stats = RoundTextFormatter.buildRoundEndStats(mScore, mStats, mEndlessMode, mLevelConfig);
 
 			OverlayRenderer.drawRoundEndOverlay(g,
 					mModeRules.getRoundEndTitle(cleared, hasNext),
@@ -411,9 +461,23 @@ public class PlayState extends State {
 					getRoundEndButtonLabels());
 		}
 
+		if (mHitFlashTimer > 0) {
+			int alpha = (int)(180 * Math.min(mHitFlashTimer / 0.3f, 1.0f));
+			g.setColor(Color.argb(alpha, 230, 30, 30));
+			g.fillRect(0, 0, GameMainActivity.GAME_WIDTH, GameMainActivity.GAME_HEIGHT);
+		}
+
 		drawDebugButton(g);
 		if (mDebugPanelVisible) {
 			drawDebugPanel(g);
+		}
+
+		// ---- Visual effects render (on top of everything) ----
+		for (Particle p : mParticles) {
+			p.render(g);
+		}
+		for (ScorePopup popup : mScorePopups) {
+			popup.render(g);
 		}
 	}
 
@@ -586,8 +650,38 @@ public class PlayState extends State {
 		g.fillRect(PAUSE_BTN_X + 14, PAUSE_BTN_Y + 10, 6, 28);
 		g.fillRect(PAUSE_BTN_X + 28, PAUSE_BTN_Y + 10, 6, 28);
 
+		drawTimeLimit(g);
 		drawPowerUpIndicators(g);
 		drawCompanionIndicators(g);
+	}
+
+	private void drawTimeLimit(Painter g) {
+		if (mLevelConfig.timeLimit <= 0 || mTimeLimitTimer <= 0) {
+			return;
+		}
+		int barX = 430;
+		int barY = 64;
+		int barW = 420;
+		int barH = 18;
+		float ratio = mTimeLimitTimer / mLevelConfig.timeLimit;
+		int fillW = (int)(barW * ratio);
+
+		// Background
+		g.setColor(Color.argb(120, 0, 0, 0));
+		g.fillRoundRect(barX, barY, barW, barH, 9);
+
+		// Fill — red when < 25%, yellow when < 50%
+		int color = ratio < 0.25f ? Color.rgb(255, 50, 50)
+				: ratio < 0.5f ? Color.rgb(255, 200, 50)
+				: Color.rgb(100, 200, 255);
+		g.setColor(color);
+		g.fillRoundRect(barX + 1, barY + 1, Math.max(fillW - 2, 0), barH - 2, 8);
+
+		// Time text
+		g.setFont(Typeface.SANS_SERIF, 20);
+		g.setColor(Color.WHITE);
+		int sec = (int) mTimeLimitTimer;
+		g.drawString(sec + "s", barX + barW / 2 - 14, barY + 22);
 	}
 
 	private void drawCompanionIndicators(Painter g) {
@@ -625,13 +719,16 @@ public class PlayState extends State {
 		int comboX = 800;
 		int comboY = 65;
 
-		g.setFont(Typeface.DEFAULT_BOLD, 28);
+		// Animated scale pulse when combo increases
+		int fontSize = (int) (28 * mComboScale);
+		int offset = (int) (2 * mComboScale);
+		g.setFont(Typeface.DEFAULT_BOLD, fontSize);
 		// Shadow for readability
 		g.setColor(Color.argb(120, 0, 0, 0));
-		g.drawString("连击 x" + mCombo, comboX + 2, comboY + 2);
+		g.drawString("连击 x" + mCombo, comboX + offset, comboY + offset);
 		// Glow-ish outline
 		g.setColor(Color.argb(80, 255, 255, 255));
-		g.drawString("连击 x" + mCombo, comboX + 1, comboY + 1);
+		g.drawString("连击 x" + mCombo, comboX + offset / 2, comboY + offset / 2);
 		// Main text
 		g.setColor(comboColors[ci]);
 		g.drawString("连击 x" + mCombo, comboX, comboY);
@@ -736,6 +833,10 @@ public class PlayState extends State {
 		if (mCombo > mStats.comboPeak) {
 			mStats.comboPeak = mCombo;
 		}
+		if (mCombo >= 2) {
+			mComboScale = 1.45f;
+			Assets.playSound(Assets.sfxCombo);
+		}
 		return getComboMultiplier();
 	}
 
@@ -773,6 +874,17 @@ public class PlayState extends State {
 		}
 		mLife--;
 		resetCombo();
+		Assets.playSound(Assets.sfxHit);
+
+		// Hit visual effect: screen flash + red particles
+		mHitFlashTimer = 0.3f;
+		int cx = mMyFish.getX() + mMyFish.getWidth() / 2;
+		int cy = mMyFish.getY() + mMyFish.getHeight() / 2;
+		spawnHitParticles(cx, cy);
+
+		if (mLife <= 0) {
+			Assets.playSound(Assets.sfxLose);
+		}
 		if (mLife > 0) {
 			mMyFish.setNonceState(Fish.DIE);
 		}
@@ -781,11 +893,29 @@ public class PlayState extends State {
 
 	void onPlayerEatFish(Fish fish, int points) {
 		mStats.fishEaten++;
+		mRoundFishEaten++;
 		if (mMyFish.mNonceState == Fish.SWIML || mMyFish.mNonceState == Fish.SWERVE_L) {
 			mMyFish.setNonceState(Fish.EATL);
 		} else if (mMyFish.mNonceState == Fish.SWIMR || mMyFish.mNonceState == Fish.SWERVE_R) {
 			mMyFish.setNonceState(Fish.EATR);
 		}
+
+		// Play eat sound based on fish size
+		if (fish.mSize >= Fish.BIG) {
+			Assets.playSound(Assets.sfxEatBig);
+		} else {
+			Assets.playSound(Assets.sfxEat);
+		}
+
+		// ---- Visual effects: particles + score popup ----
+		int fishCx = fish.getX() + fish.getWidth() / 2;
+		int fishCy = fish.getY() + fish.getHeight() / 2;
+		spawnEatParticles(fishCx, fishCy, fish.mSize);
+
+		float mult = getComboMultiplier();
+		String popupText = (mult > 1.0f) ? "+" + points + " x" + String.format("%.1f", mult)
+				: "+" + points;
+		mScorePopups.add(new ScorePopup(popupText, fishCx, fishCy - 10));
 
 		if (mModeRules.canGainScore(mScore, mLevelConfig.targetScore)) {
 			addScore(points);
@@ -794,6 +924,7 @@ public class PlayState extends State {
 		}
 
 		if (didClearLevel()) {
+			Assets.playSound(Assets.sfxWin);
 			mMyFish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
 		} else if (mScore >= 70) {
 			mMyFish.setSize(Fish.SUPER);
@@ -812,16 +943,20 @@ public class PlayState extends State {
 
 	void onCollectPowerUp(PowerUp powerUp) {
 		mStats.powerUpsCollected++;
+		mRoundPowerUpsCollected++;
 		switch (powerUp.type) {
 			case SPEED:
 				mSpeedTimer = PowerUpType.SPEED.duration;
 				mMyFish.mSpeedMultiplier = 2.0f;
+				Assets.playSound(Assets.sfxPowerup);
 				break;
 			case SHIELD:
 				mMyFish.mHasShield = true;
+				Assets.playSound(Assets.sfxShield);
 				break;
 			case FREEZE:
 				mFreezeTimer = PowerUpType.FREEZE.duration;
+				Assets.playSound(Assets.sfxPowerup);
 				break;
 			case BOMB:
 				for (Fish f : mOtherFish) {
@@ -829,9 +964,11 @@ public class PlayState extends State {
 						f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
 					}
 				}
+				Assets.playSound(Assets.sfxBomb);
 				break;
 			case LURE:
 				mLureTimer = PowerUpType.LURE.duration;
+				Assets.playSound(Assets.sfxLure);
 				break;
 		}
 	}
@@ -890,6 +1027,9 @@ public class PlayState extends State {
 	}
 
 	boolean isRoundFinished() {
+		if (mLevelConfig.timeLimit > 0 && mTimeLimitTimer <= 0) {
+			return true;
+		}
 		return mModeRules.isRoundFinished(mLife, mScore, mLevelConfig.targetScore);
 	}
 
@@ -905,17 +1045,34 @@ public class PlayState extends State {
 		return mModeRules.getRoundEndButtonLabels(didClearLevel(), hasNextLevel());
 	}
 
+	void saveRoundStats() {
+		// Level progress unlock
+		if (!mEndlessMode && didClearLevel()) {
+			int nextLevel = mLevelIndex + 1;
+			if (nextLevel > GameMainActivity.getUnlockedLevel()) {
+				GameMainActivity.setUnlockedLevel(nextLevel);
+			}
+		}
+		// Cumulative achievement stats
+		GameMainActivity.addFishEaten(mRoundFishEaten);
+		GameMainActivity.addPowerUpsCollected(mRoundPowerUpsCollected);
+		GameMainActivity.updateComboPeak(mStats.comboPeak);
+	}
+
 	void restartGame() {
+		saveRoundStats();
 		Assets.stopMusic();
 		setCurrentState(new PlayState(mLevelIndex, mEndlessMode));
 	}
 
 	void nextLevel() {
+		saveRoundStats();
 		Assets.stopMusic();
 		setCurrentState(new PlayState(mLevelIndex + 1));
 	}
 
 	void returnToMenu() {
+		saveRoundStats();
 		Assets.stopMusic();
 		setCurrentState(new MenuState());
 	}
@@ -939,7 +1096,9 @@ public class PlayState extends State {
 	}
 
 	void spawnPowerUp() {
-		PowerUpType[] types = PowerUpType.values();
+		PowerUpType[] types = mLevelConfig.allowedPowerUps != null
+				? mLevelConfig.allowedPowerUps
+				: PowerUpType.values();
 		PowerUpType type = types[RandomNumberGenerator.getRandInt(types.length)];
 		PowerUp p = new PowerUp(type);
 		int x = RandomNumberGenerator.getRandIntBetween(60,
@@ -954,8 +1113,7 @@ public class PlayState extends State {
 
 	void spawnDebugSmallFish() {
 		Fish f = new Fish(Assets.suergeonfish, 42, 24, Fish.SMALL, Fish.DIE);
-		f.setSize(Fish.SMALL);
-		f.setSpeedBonus(mLevelConfig.speedBonus);
+		prepareEnemyFish(f, Fish.SMALL);
 		int y = RandomNumberGenerator.getRandIntBetween(
 				GameMainActivity.getPlayTop(),
 				GameMainActivity.getPlayBottom() - f.getHeight());
@@ -973,6 +1131,44 @@ public class PlayState extends State {
 	void spawnDebugCompanion() {
 		mCompanionCharge = COMPANION_CHARGE_TARGET;
 		spawnCompanionIfReady();
+	}
+
+	private void spawnEatParticles(int cx, int cy, byte fishSize) {
+		int count = 8 + fishSize * 2;
+		int[] colors = {
+				Color.rgb(255, 215, 0),
+				Color.rgb(255, 165, 0),
+				Color.rgb(255, 200, 50),
+				Color.rgb(255, 240, 150)
+		};
+		for (int i = 0; i < count; i++) {
+			float angle = (float) (Math.random() * Math.PI * 2);
+			float speed = 2.0f + (float) (Math.random() * 4.0f);
+			float vx = (float) Math.cos(angle) * speed;
+			float vy = (float) Math.sin(angle) * speed - 1.5f;
+			int color = colors[RandomNumberGenerator.getRandInt(colors.length)];
+			float life = 0.4f + (float) (Math.random() * 0.4f);
+			mParticles.add(new Particle(cx, cy, vx, vy, color, life));
+		}
+	}
+
+	private void spawnHitParticles(int cx, int cy) {
+		int count = 14;
+		int[] colors = {
+				Color.rgb(255, 50, 50),
+				Color.rgb(230, 30, 30),
+				Color.rgb(255, 100, 60),
+				Color.rgb(200, 20, 20)
+		};
+		for (int i = 0; i < count; i++) {
+			float angle = (float) (Math.random() * Math.PI * 2);
+			float speed = 3.0f + (float) (Math.random() * 5.0f);
+			float vx = (float) Math.cos(angle) * speed;
+			float vy = (float) Math.sin(angle) * speed - 2.0f;
+			int color = colors[RandomNumberGenerator.getRandInt(colors.length)];
+			float life = 0.35f + (float) (Math.random() * 0.3f);
+			mParticles.add(new Particle(cx, cy, vx, vy, color, life));
+		}
 	}
 
 	@Override
@@ -994,6 +1190,40 @@ public class PlayState extends State {
 			return Fish.NORMAL;
 		}
 		return Fish.SMALL;
+	}
+
+	private void prepareEnemyFish(Fish fish, byte size) {
+		fish.setSpecies(randomFishSpecies(size));
+		fish.setSpeedBonus(mLevelConfig.speedBonus);
+	}
+
+	private Fish.Species randomFishSpecies(byte size) {
+		boolean useVariant = RandomNumberGenerator.getRandInt(100) < getVariantSpawnChance();
+		switch (size) {
+			case Fish.NORMAL:
+				return useVariant ? Fish.Species.SUN_TUNA : Fish.Species.TUNA;
+			case Fish.BIG:
+				return useVariant ? Fish.Species.ROYAL_LION : Fish.Species.LION;
+			case Fish.SUPER:
+				return useVariant ? Fish.Species.REEF_SHARK : Fish.Species.SHARK;
+			case Fish.SMALL:
+			default:
+				return useVariant ? Fish.Species.GLOW_SURGEON : Fish.Species.SURGEON;
+		}
+	}
+
+	private int getVariantSpawnChance() {
+		if (mEndlessMode) {
+			return 55;
+		}
+		switch (mLevelConfig.index) {
+			case 1:
+				return 20;
+			case 2:
+				return 35;
+			default:
+				return 50;
+		}
 	}
 
 	private String getModeLabel() {

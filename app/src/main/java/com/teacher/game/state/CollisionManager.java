@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+import com.teacher.fish.Assets;
 import com.teacher.fish.GameMainActivity;
 import com.teacher.game.model.CompanionFish;
 import com.teacher.game.model.Fish;
@@ -45,6 +46,7 @@ public class CollisionManager {
 					// Shield blocks one hit
 					if (mState.mMyFish.mHasShield) {
 						mState.mMyFish.mHasShield = false;
+						Assets.playSound(Assets.sfxShield);
 						f.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
 						continue;
 					}
@@ -81,6 +83,7 @@ public class CollisionManager {
                 }
 				if (f.mSize < mState.mMyFish.mSize) {
 					int points = (f.mSize + 1) * 10;
+					Assets.playSound(Assets.sfxEat);
 					mState.onCompanionEatFish(companion, f, points);
 				}
             }

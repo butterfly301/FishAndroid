@@ -12,6 +12,17 @@ public class Fish extends Sprite {
 
 	public static final byte SMALL = 0 , NORMAL = 1 , BIG =  2, SUPER = 3;
 
+	public enum Species {
+		SURGEON,
+		GLOW_SURGEON,
+		TUNA,
+		SUN_TUNA,
+		LION,
+		ROYAL_LION,
+		SHARK,
+		REEF_SHARK
+	}
+
 	public static final byte SWIMR = 0, SWIML = 1, EATR = 2, EATL = 3,
 			SWERVE_R = 4, SWERVE_L = 5, DIE = 6;
 
@@ -26,8 +37,12 @@ public class Fish extends Sprite {
 	public int mMoveX, mMoveY;
 
 	public Behavior mBehavior = Behavior.PATROL;
+
+	public Species mSpecies = Species.SURGEON;
 	
 	private int mSpeedBonus;
+	private int mVariantSpeedBonus;
+	private int mVariantVerticalRange;
 
 	public Fish(Bitmap image, int frameWidth, int frameHeight,byte size, byte state) {
 		super(image, frameWidth, frameHeight);
@@ -38,20 +53,49 @@ public class Fish extends Sprite {
 	public void setSize(byte size) {
 		switch(size) {
 			case NORMAL:
-				this.setImage(Assets.tuna, 78, 40);
-				mSize = size;
+				applySpecies(Species.TUNA, Assets.tuna, 78, 40, NORMAL, 0, 0);
 				break;
 			case BIG:
-				this.setImage(Assets.lion, 110, 86);
-				mSize = size;
+				applySpecies(Species.LION, Assets.lion, 110, 86, BIG, 0, 1);
 				break;
 			case SUPER:
-				this.setImage(Assets.shark, 220, 96);
-				mSize = size;
+				applySpecies(Species.SHARK, Assets.shark, 220, 96, SUPER, 0, 8);
 				break;
 			default:
-				this.setImage(Assets.suergeonfish, 42, 24);
-				mSize = SMALL;
+				applySpecies(Species.SURGEON, Assets.suergeonfish, 42, 24, SMALL, 0, 0);
+				break;
+		}
+		mNonceState = DIE;
+		mMoveX = 0;
+		mMoveY = 0;
+	}
+
+	public void setSpecies(Species species) {
+		switch (species) {
+			case GLOW_SURGEON:
+				applySpecies(species, Assets.suergeonfishVariant, 42, 24, SMALL, 1, 3);
+				break;
+			case TUNA:
+				applySpecies(species, Assets.tuna, 78, 40, NORMAL, 0, 0);
+				break;
+			case SUN_TUNA:
+				applySpecies(species, Assets.tunaVariant, 78, 40, NORMAL, 2, 2);
+				break;
+			case LION:
+				applySpecies(species, Assets.lion, 110, 86, BIG, 0, 1);
+				break;
+			case ROYAL_LION:
+				applySpecies(species, Assets.lionVariant, 110, 86, BIG, 1, 3);
+				break;
+			case SHARK:
+				applySpecies(species, Assets.shark, 220, 96, SUPER, 0, 8);
+				break;
+			case REEF_SHARK:
+				applySpecies(species, Assets.sharkVariant, 220, 96, SUPER, 2, 12);
+				break;
+			case SURGEON:
+			default:
+				applySpecies(species, Assets.suergeonfish, 42, 24, SMALL, 0, 0);
 				break;
 		}
 		mNonceState = DIE;
@@ -68,9 +112,10 @@ public class Fish extends Sprite {
 			case SWIML:
 				if (mNonceState != SWIML) {
 					mNonceState = SWIML;
-					mMoveX = -(mSize + RandomNumberGenerator.getRandIntBetween(1, 5) + mSpeedBonus);
-					if (mSize == SUPER)
-						mMoveY = RandomNumberGenerator.getRandIntBetween(-8, 9);
+					mMoveX = -(mSize + RandomNumberGenerator.getRandIntBetween(1, 5)
+							+ mSpeedBonus + mVariantSpeedBonus);
+					if (mVariantVerticalRange > 0)
+						mMoveY = RandomNumberGenerator.getRandIntBetween(-mVariantVerticalRange, mVariantVerticalRange + 1);
 					else
 						mMoveY = 0;
 					this.setFrameSequence(new int[] {3, 4, 5, 4});
@@ -79,9 +124,10 @@ public class Fish extends Sprite {
 			case SWIMR:
 				if (mNonceState != SWIMR) {
 					mNonceState = SWIMR;
-					mMoveX = (mSize + RandomNumberGenerator.getRandIntBetween(1, 5) + mSpeedBonus);
-					if (mSize == SUPER)
-						mMoveY = RandomNumberGenerator.getRandIntBetween(-8, 9);
+					mMoveX = (mSize + RandomNumberGenerator.getRandIntBetween(1, 5)
+							+ mSpeedBonus + mVariantSpeedBonus);
+					if (mVariantVerticalRange > 0)
+						mMoveY = RandomNumberGenerator.getRandIntBetween(-mVariantVerticalRange, mVariantVerticalRange + 1);
 					else
 						mMoveY = 0;
 					this.setFrameSequence(new int[] {0, 1, 2, 1});
@@ -171,6 +217,15 @@ public class Fish extends Sprite {
 			if (getFrame() == 1)
 				setNonceState(SWIMR);
 		}
+	}
+
+	private void applySpecies(Species species, Bitmap image, int frameWidth, int frameHeight,
+			byte size, int variantSpeedBonus, int variantVerticalRange) {
+		this.setImage(image, frameWidth, frameHeight);
+		mSpecies = species;
+		mSize = size;
+		mVariantSpeedBonus = variantSpeedBonus;
+		mVariantVerticalRange = variantVerticalRange;
 	}
 
 }

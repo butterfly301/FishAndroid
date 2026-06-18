@@ -2,6 +2,8 @@ package com.teacher.fish;
 
 
 
+import com.teacher.fish.Assets;
+
 import android.app.Activity;
 import android.content.SharedPreferences;
 import android.content.res.AssetManager;
@@ -17,6 +19,12 @@ public class GameMainActivity extends Activity {
 	private static final String KEY_HIGH_SCORE = "high_score";
 	private static final String KEY_ENDLESS_HIGH_SCORE = "endless_high_score";
 	private static final String KEY_AUTO_MODE = "auto_mode";
+	private static final String KEY_SOUND_ENABLED = "sound_enabled";
+	private static final String KEY_MUSIC_ENABLED = "music_enabled";
+	private static final String KEY_UNLOCKED_LEVEL = "unlocked_level";
+	private static final String KEY_ACHIEVE_FISH_EATEN = "achieve_fish_eaten";
+	private static final String KEY_ACHIEVE_POWERUPS = "achieve_powerups";
+	private static final String KEY_ACHIEVE_COMBO_PEAK = "achieve_combo_peak";
 	public static GameView sGame;
 	public static AssetManager assets;
 
@@ -95,6 +103,154 @@ public class GameMainActivity extends Activity {
 		SharedPreferences prefs = sGame.getContext()
 				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		prefs.edit().putBoolean(KEY_AUTO_MODE, autoMode).apply();
+	}
+
+	public static boolean isSoundEnabled() {
+		if (sGame == null) {
+			return true;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		return prefs.getBoolean(KEY_SOUND_ENABLED, true);
+	}
+
+	public static void setSoundEnabled(boolean enabled) {
+		if (sGame == null) {
+			return;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		prefs.edit().putBoolean(KEY_SOUND_ENABLED, enabled).apply();
+		Assets.sSoundEnabled = enabled;
+	}
+
+	public static boolean isMusicEnabled() {
+		if (sGame == null) {
+			return true;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		return prefs.getBoolean(KEY_MUSIC_ENABLED, true);
+	}
+
+	public static void setMusicEnabled(boolean enabled) {
+		if (sGame == null) {
+			return;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		prefs.edit().putBoolean(KEY_MUSIC_ENABLED, enabled).apply();
+		Assets.setMusicEnabled(enabled);
+	}
+
+	public static void resetAllScores() {
+		if (sGame == null) {
+			return;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		prefs.edit()
+				.putInt(KEY_HIGH_SCORE, 0)
+				.putInt(KEY_ENDLESS_HIGH_SCORE, 0)
+				.apply();
+	}
+
+	// ================================================================
+	//  Level progress unlock
+	// ================================================================
+
+	public static int getUnlockedLevel() {
+		if (sGame == null) {
+			return 0;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		return prefs.getInt(KEY_UNLOCKED_LEVEL, 0);
+	}
+
+	public static void setUnlockedLevel(int levelIndex) {
+		if (sGame == null) {
+			return;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int current = prefs.getInt(KEY_UNLOCKED_LEVEL, 0);
+		if (levelIndex > current) {
+			prefs.edit().putInt(KEY_UNLOCKED_LEVEL, levelIndex).apply();
+		}
+	}
+
+	/** Call when any round ends to update cumulative stats. */
+	public static void addFishEaten(int count) {
+		if (sGame == null || count <= 0) {
+			return;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int total = prefs.getInt(KEY_ACHIEVE_FISH_EATEN, 0) + count;
+		prefs.edit().putInt(KEY_ACHIEVE_FISH_EATEN, total).apply();
+	}
+
+	public static int getFishEaten() {
+		if (sGame == null) {
+			return 0;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		return prefs.getInt(KEY_ACHIEVE_FISH_EATEN, 0);
+	}
+
+	public static void addPowerUpsCollected(int count) {
+		if (sGame == null || count <= 0) {
+			return;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int total = prefs.getInt(KEY_ACHIEVE_POWERUPS, 0) + count;
+		prefs.edit().putInt(KEY_ACHIEVE_POWERUPS, total).apply();
+	}
+
+	public static int getPowerUpsCollected() {
+		if (sGame == null) {
+			return 0;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		return prefs.getInt(KEY_ACHIEVE_POWERUPS, 0);
+	}
+
+	public static void updateComboPeak(int peak) {
+		if (sGame == null) {
+			return;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int current = prefs.getInt(KEY_ACHIEVE_COMBO_PEAK, 0);
+		if (peak > current) {
+			prefs.edit().putInt(KEY_ACHIEVE_COMBO_PEAK, peak).apply();
+		}
+	}
+
+	public static int getComboPeak() {
+		if (sGame == null) {
+			return 0;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		return prefs.getInt(KEY_ACHIEVE_COMBO_PEAK, 0);
+	}
+
+	public static void resetAchievementStats() {
+		if (sGame == null) {
+			return;
+		}
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		prefs.edit()
+				.putInt(KEY_ACHIEVE_FISH_EATEN, 0)
+				.putInt(KEY_ACHIEVE_POWERUPS, 0)
+				.putInt(KEY_ACHIEVE_COMBO_PEAK, 0)
+				.apply();
 	}
 
 	public static int getPlayTop() {

@@ -3,20 +3,22 @@ package com.teacher.game.state;
 import com.teacher.fish.Assets;
 import com.teacher.fish.GameMainActivity;
 import com.teacher.framework.util.Painter;
+import com.teacher.game.state.SettingsState;
+import com.teacher.game.state.AchievementState;
 
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.MotionEvent;
 
 public class MenuState extends State {
-	private static final String[] MENU_ITEMS = {"关卡模式", "无尽模式", "制作成员", "退出游戏"};
+	private static final String[] MENU_ITEMS = {"关卡模式", "无尽模式", "制作成员", "游戏设置", "成就", "退出游戏"};
 	private static final int BUTTON_WIDTH = 320;
 	private static final int BUTTON_HEIGHT = 70;
 	private static final int BUTTON_LEFT = (GameMainActivity.GAME_WIDTH - BUTTON_WIDTH) / 2;
-	private static final int BUTTON_TOP = 252;
-	private static final int BUTTON_GAP = 82;
+	private static final int BUTTON_TOP = 190;
+	private static final int BUTTON_GAP = 78;
 	private static final int CONTROL_PANEL_X = 36;
-	private static final int CONTROL_PANEL_Y = 636;
+	private static final int CONTROL_PANEL_Y = 666;
 	private static final int CONTROL_PANEL_W = 340;
 	private static final int CONTROL_PANEL_H = 48;
 	private static final int CONTROL_LABEL_X = CONTROL_PANEL_X + 12;
@@ -24,7 +26,7 @@ public class MenuState extends State {
 	private static final int CONTROL_OPTION_W = 96;
 	private static final int CONTROL_OPTION_H = 36;
 	private static final int CONTROL_OPTION_GAP = 16;
-	private static final int CONTROL_OPTION_Y = 642;
+	private static final int CONTROL_OPTION_Y = 672;
 
 	@Override
 	public void init() {
@@ -132,6 +134,12 @@ public class MenuState extends State {
 						setCurrentState(new HelpState());
 						break;
 					case 3:
+						setCurrentState(new SettingsState());
+						break;
+					case 4:
+						setCurrentState(new AchievementState());
+						break;
+					case 5:
 						GameMainActivity.sGame.exit();
 						break;
 					default:
