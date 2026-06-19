@@ -22,8 +22,8 @@ public class SettingsState extends State {
 	private static final int TOGGLE_W = 140;
 	private static final int TOGGLE_H = 44;
 
-	private static final int LANG_BTN_W = 90;
-	private static final int LANG_BTN_H = 40;
+	private static final int LANG_BTN_W = 64;
+	private static final int LANG_BTN_H = 32;
 
 	private static final int BACK_BTN_X = 340;
 	private static final int BACK_BTN_Y = 670;
@@ -134,31 +134,36 @@ public class SettingsState extends State {
 	private void drawLanguageRow(Painter g, int index) {
 		int rowY = getRowY(index);
 		g.setColor(Color.argb(60, 255, 255, 255));
-		g.fillRoundRect(PANEL_X + 30, rowY, PANEL_W - 60, ROW_H, 16);
+		g.fillRoundRect(PANEL_X + 30, rowY, PANEL_W - 60, ROW_H + 36, 16);
 
 		g.setFont(Typeface.SANS_SERIF, 28);
 		g.setColor(Color.argb(200, 255, 255, 255));
 		g.drawString(L10n.get("settings_language"), PANEL_X + 50, rowY + 46);
 
-		// 4 language buttons in a row
 		String[] codes = L10n.getLanguageCodes();
 		String[] names = L10n.getLanguageNames();
+		int langCount = codes.length;
 		int btnAreaLeft = PANEL_X + 240;
 		int btnAreaW = (PANEL_X + PANEL_W - 60) - btnAreaLeft;
-		int totalBtnW = LANG_BTN_W * 4 + 6 * 3;
+		int gap = 4;
+		int colsPerRow = 4;
+		int rows = (langCount + colsPerRow - 1) / colsPerRow;
+		int totalBtnW = LANG_BTN_W * colsPerRow + gap * (colsPerRow - 1);
 		int startX = btnAreaLeft + (btnAreaW - totalBtnW) / 2;
 		String currentLang = L10n.getLanguage();
 
-		for (int i = 0; i < 4; i++) {
-			int bx = startX + i * (LANG_BTN_W + 6);
-			int by = rowY + (ROW_H - LANG_BTN_H) / 2;
+		for (int i = 0; i < langCount; i++) {
+			int col = i % colsPerRow;
+			int row = i / colsPerRow;
+			int bx = startX + col * (LANG_BTN_W + gap);
+			int by = rowY + 52 + row * (LANG_BTN_H + 4);
 			boolean active = codes[i].equals(currentLang);
 			g.setColor(active ? Color.rgb(255, 198, 84) : Color.argb(120, 255, 255, 255));
-			g.fillRoundRect(bx, by, LANG_BTN_W, LANG_BTN_H, 10);
-			g.setFont(Typeface.DEFAULT_BOLD, active ? 20 : 18);
+			g.fillRoundRect(bx, by, LANG_BTN_W, LANG_BTN_H, 8);
+			g.setFont(Typeface.DEFAULT_BOLD, active ? 16 : 14);
 			g.setColor(active ? Color.rgb(12, 58, 93) : Color.argb(180, 255, 255, 255));
 			float nw = g.measureText(names[i]);
-			g.drawString(names[i], bx + (int)((LANG_BTN_W - nw) / 2), by + LANG_BTN_H - 12);
+			g.drawString(names[i], bx + (int)((LANG_BTN_W - nw) / 2), by + LANG_BTN_H - 10);
 		}
 	}
 
@@ -226,22 +231,25 @@ public class SettingsState extends State {
 
 	private boolean handleLanguageTap(int x, int y) {
 		int rowY = getRowY(2);
-		if (!isInside(x, y, PANEL_X + 30, rowY, PANEL_W - 60, ROW_H)) {
-			return false;
-		}
 		String[] codes = L10n.getLanguageCodes();
 		String[] names = L10n.getLanguageNames();
+		int langCount = codes.length;
 		int btnAreaLeft = PANEL_X + 240;
 		int btnAreaW = (PANEL_X + PANEL_W - 60) - btnAreaLeft;
-		int totalBtnW = LANG_BTN_W * 4 + 6 * 3;
+		int gap = 4;
+		int colsPerRow = 4;
+		int totalBtnW = LANG_BTN_W * colsPerRow + gap * (colsPerRow - 1);
 		int startX = btnAreaLeft + (btnAreaW - totalBtnW) / 2;
 
-		for (int i = 0; i < 4; i++) {
-			int bx = startX + i * (LANG_BTN_W + 6);
-			int by = rowY + (ROW_H - LANG_BTN_H) / 2;
+		for (int i = 0; i < langCount; i++) {
+			int col = i % colsPerRow;
+			int row = i / colsPerRow;
+			int bx = startX + col * (LANG_BTN_W + gap);
+			int by = rowY + 52 + row * (LANG_BTN_H + 4);
 			if (isInside(x, y, bx, by, LANG_BTN_W, LANG_BTN_H)) {
 				L10n.setLanguage(GameMainActivity.sGame.getContext(), codes[i]);
-				// Rebuild menu items for current language
+				// Rebuild state to refresh UI with new language
+				setCurrentState(new SettingsState());
 				return true;
 			}
 		}

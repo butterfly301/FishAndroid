@@ -89,6 +89,10 @@ public class PlayState extends State {
 	ArrayList<Particle> mParticles;
 	private float mHitFlashTimer;
 
+	// ---- Collection discovery notification ----
+	private String mDiscoveryText;
+	private float mDiscoveryTimer;
+
 	// Drawing constants shared with TouchHandler (used by drawDebugButton/Panel and drawHud)
 	private static final int PAUSE_BTN_X = 1182;
 	private static final int PAUSE_BTN_Y = 26;
@@ -139,6 +143,8 @@ public class PlayState extends State {
 		mTimeLimitTimer = mLevelConfig.timeLimit;
 		mRoundFishEaten = 0;
 		mRoundPowerUpsCollected = 0;
+		mDiscoveryText = null;
+		mDiscoveryTimer = 0;
 		mHighScore = GameMainActivity.getHighScore();
 		mEndlessHighScore = GameMainActivity.getEndlessHighScore();
 		mLevelConfig = LevelRepository.getLevel(mLevelIndex);
@@ -358,6 +364,15 @@ public class PlayState extends State {
 			if (mHitFlashTimer < 0) mHitFlashTimer = 0;
 		}
 
+		// Collection discovery notification timer
+		if (mDiscoveryTimer > 0) {
+			mDiscoveryTimer -= effectiveDelta;
+			if (mDiscoveryTimer <= 0) {
+				mDiscoveryTimer = 0;
+				mDiscoveryText = null;
+			}
+		}
+
 		// Time limit
 		if (mLevelConfig.timeLimit > 0 && !isRoundFinished()) {
 			mTimeLimitTimer -= effectiveDelta;
@@ -475,11 +490,25 @@ public class PlayState extends State {
 
 			String[] stats = RoundTextFormatter.buildRoundEndStats(mScore, mStats, mEndlessMode, mLevelConfig);
 
+			int stars = 0;
+			if (mEndlessMode) {
+				// Endless mode: 1 star for playing, 2 for score>1000, 3 for >5000
+				if (mScore > 0) stars = 1;
+				if (mScore > 1000) stars = 2;
+				if (mScore > 5000) stars = 3;
+			} else if (mLevelConfig.targetScore > 0) {
+				// Level mode: 1 for attempting, 2 for target met, 3 for 1.5x target
+				if (mScore > 0) stars = 1;
+				if (mScore >= mLevelConfig.targetScore) stars = 2;
+				if (mScore >= mLevelConfig.targetScore * 1.5f) stars = 3;
+			}
+
 			OverlayRenderer.drawRoundEndOverlay(g,
 					mModeRules.getRoundEndTitle(cleared, hasNext),
 					subtitle,
 					stats,
-					getRoundEndButtonLabels());
+					getRoundEndButtonLabels(),
+					stars);
 		}
 
 		if (mHitFlashTimer > 0) {
@@ -491,6 +520,11 @@ public class PlayState extends State {
 		HudRenderer.drawDebugButton(g);
 		if (mDebugPanelVisible) {
 			drawDebugPanel(g);
+		}
+
+		// ---- Collection discovery notification ----
+		if (mDiscoveryText != null && mDiscoveryTimer > 0) {
+			drawDiscoveryNotification(g);
 		}
 
 		// ---- Visual effects render (on top of everything) ----
@@ -608,17 +642,20 @@ public class PlayState extends State {
 	/**
 	 * Track power-up collection for the encyclopedia.
 	 */
-	private static void recordPowerUpCollected(PowerUpType type) {
+	private void recordPowerUpCollected(PowerUpType type) {
 		String id;
+		String nameKey;
 		switch (type) {
-			case SPEED:  id = "coll_power_SPEED"; break;
-			case SHIELD: id = "coll_power_SHIELD"; break;
-			case FREEZE: id = "coll_power_FREEZE"; break;
-			case BOMB:   id = "coll_power_BOMB"; break;
-			case LURE:   id = "coll_power_LURE"; break;
+			case SPEED:  id = "coll_power_SPEED"; nameKey = "powerup_speed"; break;
+			case SHIELD: id = "coll_power_SHIELD"; nameKey = "powerup_shield"; break;
+			case FREEZE: id = "coll_power_FREEZE"; nameKey = "powerup_freeze"; break;
+			case BOMB:   id = "coll_power_BOMB"; nameKey = "powerup_bomb"; break;
+			case LURE:   id = "coll_power_LURE"; nameKey = "powerup_lure"; break;
 			default:     return;
 		}
-		GameMainActivity.markCollectionDiscovered(id);
+			if (GameMainActivity.markCollectionDiscovered(id)) {
+			setDiscoveryNotification(L10n.get("collection_new") + type.getName());
+		}
 	}
 
 	void spawnCompanionIfReady() {
@@ -626,7 +663,9 @@ public class PlayState extends State {
 			return;
 		}
 		mCompanionCharge -= COMPANION_CHARGE_TARGET;
-		GameMainActivity.markCollectionDiscovered("coll_companion");
+		if (GameMainActivity.markCollectionDiscovered("coll_companion")) {
+			setDiscoveryNotification(L10n.get("collection_new") + L10n.get("coll_companion"));
+		}
 		CompanionFish companion = new CompanionFish();
 		int offsetIndex = mCompanionFishList.size() % 4;
 		int spawnOffsetX = -90 - offsetIndex * 28;
@@ -992,6 +1031,40 @@ public class PlayState extends State {
 		return mTouchHandler.onTouch(e, scaleX, scaleY);
 	}
 
+	// ================================================================
+	//  Collection discovery notification
+	// ================================================================
+
+	private void setDiscoveryNotification(String text) {
+		mDiscoveryText = text;
+		mDiscoveryTimer = 2.5f;
+	}
+
+	private void drawDiscoveryNotification(Painter g) {
+		float alpha = Math.min(1.0f, mDiscoveryTimer / 0.5f);
+		int a = (int)(200 * alpha);
+		if (a < 2) return;
+
+		String text = mDiscoveryText;
+		if (text == null) return;
+
+		// Background bar at top
+		int barY = 0;
+		int barH = 48;
+		g.setColor(Color.argb(a, 6, 34, 70));
+		g.fillRect(0, barY, GameMainActivity.GAME_WIDTH, barH);
+
+		// Accent line
+		g.setColor(Color.argb(a, 255, 215, 0));
+		g.fillRect(0, barY + barH - 3, GameMainActivity.GAME_WIDTH, 3);
+
+		// Text
+		g.setFont(Typeface.DEFAULT_BOLD, 26);
+		g.setColor(Color.argb(a, 255, 255, 255));
+		float tw = g.measureText(text);
+		g.drawString(text, (GameMainActivity.GAME_WIDTH - (int)tw) / 2, barY + 34);
+	}
+
 
 
 	private byte randomFishSize() {
@@ -1017,22 +1090,25 @@ public class PlayState extends State {
 
 	/**
 	 * Track fish species for the collection encyclopedia.
-	 * Called whenever a fish species is assigned (spawn / respawn).
+	 * Shows a notification on first discovery.
 	 */
-	private static void recordFishSpeciesEncountered(Fish.Species species) {
+	private void recordFishSpeciesEncountered(Fish.Species species) {
 		String id;
+		String nameKey;
 		switch (species) {
-			case SURGEON:      id = "coll_fish_SURGEON"; break;
-			case GLOW_SURGEON: id = "coll_fish_GLOW_SURGEON"; break;
-			case TUNA:         id = "coll_fish_TUNA"; break;
-			case SUN_TUNA:     id = "coll_fish_SUN_TUNA"; break;
-			case LION:         id = "coll_fish_LION"; break;
-			case ROYAL_LION:   id = "coll_fish_ROYAL_LION"; break;
-			case SHARK:        id = "coll_fish_SHARK"; break;
-			case REEF_SHARK:   id = "coll_fish_REEF_SHARK"; break;
+			case SURGEON:      id = "coll_fish_SURGEON"; nameKey = "fish_SURGEON"; break;
+			case GLOW_SURGEON: id = "coll_fish_GLOW_SURGEON"; nameKey = "fish_GLOW_SURGEON"; break;
+			case TUNA:         id = "coll_fish_TUNA"; nameKey = "fish_TUNA"; break;
+			case SUN_TUNA:     id = "coll_fish_SUN_TUNA"; nameKey = "fish_SUN_TUNA"; break;
+			case LION:         id = "coll_fish_LION"; nameKey = "fish_LION"; break;
+			case ROYAL_LION:   id = "coll_fish_ROYAL_LION"; nameKey = "fish_ROYAL_LION"; break;
+			case SHARK:        id = "coll_fish_SHARK"; nameKey = "fish_SHARK"; break;
+			case REEF_SHARK:   id = "coll_fish_REEF_SHARK"; nameKey = "fish_REEF_SHARK"; break;
 			default:           return;
 		}
-		GameMainActivity.markCollectionDiscovered(id);
+		if (GameMainActivity.markCollectionDiscovered(id)) {
+			setDiscoveryNotification(L10n.get("collection_new") + L10n.get(nameKey));
+		}
 	}
 
 	private Fish.Species randomFishSpecies(byte size) {
@@ -1074,7 +1150,6 @@ public class PlayState extends State {
 
 	@Override
 	public void onPause() {
-		// TODO Auto-generated method stub
 		super.onPause();
 		mGamePaused = true;
 		Assets.stopMusic();

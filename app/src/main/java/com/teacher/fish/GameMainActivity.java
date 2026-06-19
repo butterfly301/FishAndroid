@@ -53,14 +53,12 @@ public class GameMainActivity extends Activity {
 	
 	@Override
 	protected void onPause() {
-		// TODO Auto-generated method stub
 		super.onPause();
 		sGame.onPause();
 	}
 	
 	@Override
 	protected void onResume() {
-		// TODO Auto-generated method stub
 		super.onResume();
 		sGame.onResume();
 	}
@@ -441,14 +439,17 @@ public class GameMainActivity extends Activity {
 		return prefs.getBoolean(KEY_COLL_PREFIX + entryId, false);
 	}
 
-	public static void markCollectionDiscovered(String entryId) {
-		if (sGame == null) return;
+	/** Mark a collection entry as discovered. Returns true if it was newly discovered. */
+	public static boolean markCollectionDiscovered(String entryId) {
+		if (sGame == null) return false;
 		SharedPreferences prefs = sGame.getContext()
 				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
 		String key = KEY_COLL_PREFIX + entryId;
 		if (!prefs.getBoolean(key, false)) {
 			prefs.edit().putBoolean(key, true).apply();
+			return true;
 		}
+		return false;
 	}
 
 	public static int getCollectionCount() {

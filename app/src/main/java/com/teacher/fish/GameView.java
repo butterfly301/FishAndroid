@@ -102,7 +102,6 @@ public class GameView extends SurfaceView  implements Runnable {
 				gameThread.join();
 				break;
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}
@@ -124,7 +123,6 @@ public class GameView extends SurfaceView  implements Runnable {
 			try {
 				Thread.sleep(sleepDurationMills);
 			} catch (InterruptedException e) {
-				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		}

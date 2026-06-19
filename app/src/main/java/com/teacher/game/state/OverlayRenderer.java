@@ -38,14 +38,20 @@ final class OverlayRenderer {
         drawOverlayButtons(g, new String[]{L10n.get("pause_resume"), L10n.get("pause_restart"), L10n.get("pause_menu")});
     }
 
-    static void drawRoundEndOverlay(Painter g, String title, String subtitle,
-                                    String[] statsData, String[] buttonLabels) {
-        g.setColor(Color.argb(168, 0, 0, 0));
-        g.fillRect(0, 0, GameMainActivity.GAME_WIDTH, GameMainActivity.GAME_HEIGHT);
-        drawOverlayCard(g, title, subtitle);
-        drawStatsPanel(g, statsData);
-        drawOverlayButtons(g, buttonLabels);
-    }
+	static void drawRoundEndOverlay(Painter g, String title, String subtitle,
+	                                String[] statsData, String[] buttonLabels) {
+		drawRoundEndOverlay(g, title, subtitle, statsData, buttonLabels, 0);
+	}
+
+	static void drawRoundEndOverlay(Painter g, String title, String subtitle,
+	                                String[] statsData, String[] buttonLabels, int stars) {
+		g.setColor(Color.argb(168, 0, 0, 0));
+		g.fillRect(0, 0, GameMainActivity.GAME_WIDTH, GameMainActivity.GAME_HEIGHT);
+		drawOverlayCard(g, title, subtitle);
+		drawStars(g, stars);
+		drawStatsPanel(g, statsData);
+		drawOverlayButtons(g, buttonLabels);
+	}
 
     // ================================================================
     //  Card
@@ -66,9 +72,56 @@ final class OverlayRenderer {
         drawCenteredText(g, subtitle, OverlayLayout.CARD_X, OverlayLayout.CARD_W, OverlayLayout.CARD_Y + 148);
     }
 
-    // ================================================================
-    //  Stats panel
-    // ================================================================
+	// ================================================================
+	//  Star rating (1-3)
+	// ================================================================
+
+	private static void drawStars(Painter g, int starCount) {
+		if (starCount <= 0) return;
+		int starSize = 36;
+		int gap = 20;
+		int totalW = starCount * starSize + (starCount - 1) * gap;
+		int startX = (GameMainActivity.GAME_WIDTH - totalW) / 2;
+		int y = OverlayLayout.CARD_Y + 178;
+
+		for (int i = 0; i < 3; i++) {
+			int cx = startX + i * (starSize + gap) + starSize / 2;
+			boolean filled = i < starCount;
+			drawStarShape(g, cx, y, starSize / 2, filled);
+		}
+	}
+
+	/**
+	 * Draw a single five-pointed star.
+	 */
+	private static void drawStarShape(Painter g, int cx, int cy, int r, boolean filled) {
+		android.graphics.Path path = new android.graphics.Path();
+		for (int i = 0; i < 10; i++) {
+			float angle = (float) (i * Math.PI / 5 - Math.PI / 2);
+			float radius = (i % 2 == 0) ? r : r * 0.45f;
+			float px = cx + (float) Math.cos(angle) * radius;
+			float py = cy + (float) Math.sin(angle) * radius;
+			if (i == 0) path.moveTo(px, py);
+			else path.lineTo(px, py);
+		}
+		path.close();
+
+		android.graphics.Paint p = new android.graphics.Paint(
+				android.graphics.Paint.ANTI_ALIAS_FLAG);
+		if (filled) {
+			p.setStyle(android.graphics.Paint.Style.FILL);
+			p.setColor(Color.rgb(255, 215, 0));
+		} else {
+			p.setStyle(android.graphics.Paint.Style.STROKE);
+			p.setStrokeWidth(2.5f);
+			p.setColor(Color.argb(120, 255, 255, 255));
+		}
+		g.getCanvas().drawPath(path, p);
+	}
+
+	// ================================================================
+	//  Stats panel
+	// ================================================================
 
     private static void drawStatsPanel(Painter g, String[] stats) {
         if (stats == null || stats.length == 0) {

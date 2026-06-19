@@ -194,7 +194,6 @@ public class Assets {
 		try {
 			input = GameMainActivity.assets.open(fileName);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		Options options = new Options();
@@ -348,7 +347,6 @@ public class Assets {
 		try {
 			id = soundPool.load(GameMainActivity.assets.openFd(fileName), 1);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		return id;
@@ -390,8 +388,7 @@ public class Assets {
 			mp.setLooping(b);
 			mp.start();			
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			android.util.Log.e("Assets", "playMusic failed for " + fileName, e);
 		}
 	}
 	
