@@ -38,6 +38,7 @@ public class Assets {
 						angelfishnormal,angelfishbig,angelfishsuper,
 						virjoy_outter, virjoy_inner,
 						gameover,sorry,pass;
+	public static Bitmap[] playBackgrounds;
 	
 	public static Animation runAnim;
 	
@@ -46,6 +47,25 @@ public class Assets {
 	// ---- Sound effect IDs ----
 	public static int sfxEat, sfxEatBig, sfxHit, sfxPowerup, sfxCombo,
 			sfxWin, sfxLose, sfxShield, sfxBomb, sfxLure;
+
+	// ---- UI click sound IDs ----
+	public static int sfxClick, sfxBack, sfxTab;
+
+	// ---- BGM file name constants ----
+	public static final String BGM_MENU    = "MainMenuBGM.mp3";
+	public static final String BGM_ENDLESS = "bgm_endless.mp3";
+	public static final String BGM_STAGE_0 = "bgm_stage0.mp3";   // Level 1-10
+	public static final String BGM_STAGE_1 = "bgm_stage1.mp3";   // Level 11-20
+	public static final String BGM_STAGE_2 = "bgm_stage2.mp3";   // Level 21-30
+	public static final String BGM_STAGE_3 = "bgm_stage3.mp3";   // Level 31-40
+	public static final String BGM_STAGE_4 = "bgm_stage4.mp3";   // Level 41-50
+	public static final String BGM_STAGE_5 = "bgm_stage5.mp3";   // Level 51-60
+	public static final String BGM_STAGE_6 = "bgm_stage6.mp3";   // Level 61-70
+	public static final String BGM_STAGE_7 = "bgm_stage7.mp3";   // Level 71-80
+	public static final String BGM_STAGE_8 = "bgm_stage8.mp3";   // Level 81-90
+	public static final String BGM_STAGE_9 = "bgm_stage9.mp3";   // Level 91-100
+	/** Built-in fallback gameplay BGM (MIDI, always available). */
+	public static final String BGM_FALLBACK = "backgoundsound.mid";
 
 	// ---- Sound/Music control flags ----
 	public static boolean sSoundEnabled = true;
@@ -60,9 +80,21 @@ public class Assets {
 		menuText = loadBitmap("menutext.png", true);
 		menuItem = loadBitmap("menuitem.png", true);
 		bgimg7 = loadBitmap("bgimg7.jpg", false);
-		background = loadBitmap("background.png", false);
-		backgroundLevel2 = loadBitmap("background_level2.png", false);
-		backgroundLevel3 = loadBitmap("background_level3.png", false);
+		playBackgrounds = new Bitmap[] {
+				loadBitmap("background.png", false),
+				loadBitmap("background_level2.png", false),
+				loadBitmap("background_level3.png", false),
+				loadBitmap("background_level4.png", false),
+				loadBitmap("background_level5.png", false),
+				loadBitmap("background_level6.png", false),
+				loadBitmap("background_level7.png", false),
+				loadBitmap("background_level8.png", false),
+				loadBitmap("background_level9.png", false),
+				loadBitmap("background_level10.png", false)
+		};
+		background = playBackgrounds[0];
+		backgroundLevel2 = playBackgrounds[1];
+		backgroundLevel3 = playBackgrounds[2];
 		backgroundEndless = createTintedBackground(background,
 				Color.argb(132, 48, 18, 76),
 				Color.argb(42, 255, 180, 96));
@@ -121,6 +153,10 @@ public class Assets {
 		sfxShield = loadSound("sfx_shield.wav");
 		sfxBomb = loadSound("sfx_bomb.wav");
 		sfxLure = loadSound("sfx_lure.wav");
+
+		sfxClick = loadSound("sfx_click.wav");
+		sfxBack  = loadSound("sfx_back.wav");
+		sfxTab   = loadSound("sfx_tab.wav");
 		
 		Frame f1 = new Frame(loadBitmap("run_anim1.png", true), 0.1);
 		Frame f2 = new Frame(loadBitmap("run_anim2.png", true), 0.1);
@@ -135,14 +171,21 @@ public class Assets {
 		if (endlessMode) {
 			return backgroundEndless != null ? backgroundEndless : background;
 		}
-		switch (levelIndex) {
-			case 1:
-				return backgroundLevel2 != null ? backgroundLevel2 : background;
-			case 2:
-				return backgroundLevel3 != null ? backgroundLevel3 : background;
-			default:
-				return background;
+		if (playBackgrounds == null || playBackgrounds.length == 0) {
+			return background;
 		}
+		int stageIndex = levelIndex / 10;
+		if (stageIndex < 0) {
+			stageIndex = 0;
+		} else if (stageIndex >= playBackgrounds.length) {
+			stageIndex = playBackgrounds.length - 1;
+		}
+		for (int i = stageIndex; i >= 0; i--) {
+			if (playBackgrounds[i] != null) {
+				return playBackgrounds[i];
+			}
+		}
+		return background;
 	}
 
 	
@@ -358,6 +401,109 @@ public class Assets {
 			mp.release();
 			mp = null;
 		}
+	}
+
+	// ================================================================
+	//  BGM selection (per stage / mode)
+	// ================================================================
+
+	/**
+	 * Returns the BGM file name for the given level index (0-based).
+	 * Falls back gracefully to the built-in MIDI if a stage-specific
+	 * MP3 file has not been placed in assets/ yet.
+	 */
+	public static String getBGMForLevel(int levelIndex) {
+		int stage = levelIndex / 10;
+		if (stage < 0 || stage > 9) {
+			return BGM_FALLBACK;
+		}
+		// Check if the stage-specific file exists; if not, fall through
+		if (assetExists(getStageBgmName(stage))) {
+			return getStageBgmName(stage);
+		}
+		// Try the next lower stage that has a file, or fallback
+		for (int s = stage; s >= 0; s--) {
+			String name = getStageBgmName(s);
+			if (assetExists(name)) {
+				return name;
+			}
+		}
+		return BGM_FALLBACK;
+	}
+
+	/**
+	 * Returns the BGM file name for endless mode.
+	 */
+	public static String getBGMForEndless() {
+		if (assetExists(BGM_ENDLESS)) {
+			return BGM_ENDLESS;
+		}
+		return BGM_FALLBACK;
+	}
+
+	private static String getStageBgmName(int stage) {
+		switch (stage) {
+			case 0:  return BGM_STAGE_0;
+			case 1:  return BGM_STAGE_1;
+			case 2:  return BGM_STAGE_2;
+			case 3:  return BGM_STAGE_3;
+			case 4:  return BGM_STAGE_4;
+			case 5:  return BGM_STAGE_5;
+			case 6:  return BGM_STAGE_6;
+			case 7:  return BGM_STAGE_7;
+			case 8:  return BGM_STAGE_8;
+			case 9:  return BGM_STAGE_9;
+			default: return BGM_FALLBACK;
+		}
+	}
+
+	/**
+	 * Check whether a file exists under assets/ without throwing.
+	 */
+	private static boolean assetExists(String fileName) {
+		if (fileName == null) return false;
+		try {
+			java.io.InputStream s = GameMainActivity.assets.open(fileName);
+			if (s != null) {
+				s.close();
+				return true;
+			}
+		} catch (java.io.IOException e) {
+			// file does not exist
+		}
+		return false;
+	}
+
+	/**
+	 * Play stage-appropriate BGM for a given level. Called by PlayState.
+	 */
+	public static void playLevelBGM(int levelIndex) {
+		String bgm = getBGMForLevel(levelIndex);
+		playMusic(bgm, true);
+	}
+
+	/**
+	 * Play endless-mode BGM. Called by PlayState.
+	 */
+	public static void playEndlessBGM() {
+		String bgm = getBGMForEndless();
+		playMusic(bgm, true);
+	}
+
+	// ================================================================
+	//  UI click convenience helpers
+	// ================================================================
+
+	public static void playClick() {
+		playSound(sfxClick > 0 ? sfxClick : selectedID);
+	}
+
+	public static void playBack() {
+		playSound(sfxBack > 0 ? sfxBack : selectedID);
+	}
+
+	public static void playTab() {
+		playSound(sfxTab > 0 ? sfxTab : selectedID);
 	}
 
 	public static Bitmap createPowerUpBitmap(PowerUpType type, int size) {

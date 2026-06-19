@@ -20,7 +20,7 @@ public class MenuState extends State {
 		return new String[]{
 			L10n.get("menu_level_mode"),      // 0  col0 row0
 			L10n.get("menu_endless_mode"),    // 1  col1 row0
-			L10n.get("menu_credits"),         // 2  col0 row1
+			L10n.get("menu_shop"),            // 2  col0 row1
 			L10n.get("menu_settings"),        // 3  col1 row1
 			L10n.get("menu_achievements"),    // 4  col0 row2
 			L10n.get("menu_collection"),      // 5  col1 row2
@@ -53,6 +53,16 @@ public class MenuState extends State {
 	private static final int CONTROL_PANEL_Y = 666;
 	private static final int CONTROL_PANEL_W = 340;
 	private static final int CONTROL_PANEL_H = 48;
+
+	// Help / info button (bottom-right)
+	private static final int HELP_BTN_SIZE = 52;
+	private static final int HELP_BTN_X = GameMainActivity.GAME_WIDTH - HELP_BTN_SIZE - 20;
+	private static final int HELP_BTN_Y = CONTROL_PANEL_Y;
+
+	// Stats button (bottom-right, left of help)
+	private static final int STATS_BTN_SIZE = 52;
+	private static final int STATS_BTN_X = HELP_BTN_X - STATS_BTN_SIZE - 8;
+	private static final int STATS_BTN_Y = CONTROL_PANEL_Y;
 	private static final int CONTROL_LABEL_X = CONTROL_PANEL_X + 12;
 	private static final int CONTROL_OPTIONS_LEFT = CONTROL_PANEL_X + 116;
 	private static final int CONTROL_OPTION_W = 96;
@@ -111,6 +121,20 @@ public class MenuState extends State {
 
 		// Control toggle
 		drawControlToggle(g);
+
+		// Stats button (bottom-right, left of help)
+		g.setColor(Color.argb(120, 6, 32, 64));
+		g.fillRoundRect(STATS_BTN_X, STATS_BTN_Y, STATS_BTN_SIZE, STATS_BTN_SIZE, 14);
+		g.setFont(Typeface.SANS_SERIF, 16);
+		g.setColor(Color.argb(180, 255, 215, 0));
+		g.drawString(L10n.get("menu_stats"), STATS_BTN_X + 6, STATS_BTN_Y + 32);
+
+		// Help / info button (bottom-right)
+		g.setColor(Color.argb(120, 6, 32, 64));
+		g.fillRoundRect(HELP_BTN_X, HELP_BTN_Y, HELP_BTN_SIZE, HELP_BTN_SIZE, 14);
+		g.setFont(Typeface.DEFAULT_BOLD, 28);
+		g.setColor(Color.argb(200, 255, 255, 255));
+		g.drawString("?", HELP_BTN_X + 18, HELP_BTN_Y + 36);
 	}
 
 	private void drawButton(Painter g, int left, int top, int w, int h, String label) {
@@ -177,7 +201,7 @@ public class MenuState extends State {
 					setCurrentState(new PlayState(true));
 					break;
 				case 2:
-					setCurrentState(new HelpState());
+					setCurrentState(new ShopState());
 					break;
 				case 3:
 					setCurrentState(new SettingsState());
@@ -191,6 +215,20 @@ public class MenuState extends State {
 				}
 				return true;
 			}
+		}
+
+		// Stats button
+		if (isInside(scaleX, scaleY, STATS_BTN_X, STATS_BTN_Y, STATS_BTN_SIZE, STATS_BTN_SIZE)) {
+			Assets.playClick();
+			setCurrentState(new StatsState());
+			return true;
+		}
+
+		// Help / info button
+		if (isInside(scaleX, scaleY, HELP_BTN_X, HELP_BTN_Y, HELP_BTN_SIZE, HELP_BTN_SIZE)) {
+			Assets.playClick();
+			setCurrentState(new HelpState());
+			return true;
 		}
 
 		// Exit button (index 6)

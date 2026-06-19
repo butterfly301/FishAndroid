@@ -248,6 +248,41 @@ public class L10n {
 
 		// ==================== LoadState ====================
 		{"loading",             "加载中...", "Loading...", "読み込み中...", "Chargement..."},
+
+		// ==================== ShopState ====================
+		{"shop_title",          "商店", "Shop", "ショップ", "Boutique"},
+		{"shop_coins",          "\u2665 金币 %d", "\u2665 %d Coins", "\u2665 %d コイン", "\u2665 %d Pi\u00e8ces"},
+		{"shop_coins_short",    "%d 金币", "%d Coins", "%d コイン", "%d pi\u00e8ces"},
+		{"shop_back",           "返回菜单", "Back", "戻る", "Retour"},
+		{"shop_buy",            "购买", "Buy", "購入", "Acheter"},
+		{"shop_owned",          "已拥有", "Owned", "所有済み", "Poss\u00e9d\u00e9"},
+		{"shop_no_coins",       "金币不足！", "Not enough coins!", "コイン不足！", "Pi\u00e8ces insuffisantes !"},
+		{"shop_bought",         "购买成功！", "Purchased!", "購入完了！", "Achet\u00e9 !"},
+
+		{"shop_item_shield",    "护盾", "Shield", "シ\u30fcルド", "Bouclier"},
+		{"shop_desc_shield",    "下一局开始自带护盾", "Start next round with shield", "次のラウンドでシ\u30fcルド所持", "Commencez avec un bouclier"},
+		{"shop_item_life",      "额外生命", "Extra Life", "追加ライフ", "Vie suppl\u00e9mentaire"},
+		{"shop_desc_life",      "下一局增加一条命", "+1 life next round", "次のラウンドでライフ+1", "+1 vie au prochain tour"},
+		{"shop_item_speed",     "加速起步", "Speed Start", "スピ\u30fcド開始", "D\u00e9part rapide"},
+		{"shop_desc_speed",     "下一局开局自带加速", "Start next round with speed", "次のラウンドで速度UP", "Commencez avec vitesse"},
+
+		// Menu buttons
+		{"menu_shop",           "商店", "Shop", "ショップ", "Boutique"},
+		{"menu_stats",          "统计", "Stats", "統計", "Statistiques"},
+
+		// ==================== StatsState ====================
+		{"stats_title",         "游戏统计", "Game Stats", "ゲーム統計", "Statistiques"},
+		{"stats_back",          "返回主菜单", "Back to Menu", "メニューに戻る", "Retour au menu"},
+		{"stats_games_played",  "游玩局数", "Games Played", "プレイ回数", "Parties jou\u00e9es"},
+		{"stats_fish_eaten",    "累计吃鱼", "Fish Eaten", "累計捕食数", "Poissons mang\u00e9s"},
+		{"stats_powerups",      "收集道具", "Items Collected", "収集アイテム", "Objets collect\u00e9s"},
+		{"stats_combo_peak",    "最高连击", "Best Combo", "最高コンボ", "Meilleur combo"},
+		{"stats_coins_total",   "累计获得金币", "Coins Earned", "累計コイン", "Pi\u00e8ces gagn\u00e9es"},
+		{"stats_coins_balance", "当前金币余额", "Coin Balance", "現在のコイン", "Solde pi\u00e8ces"},
+		{"stats_survival_total","累计存活时间", "Total Survival", "累計生存時間", "Survie totale"},
+		{"stats_survival_longest","单局最长存活", "Longest Survival", "最長生存時間", "Plus longue survie"},
+		{"stats_record_level",  "关卡最高分: %d", "Level High Score: %d", "ステージ最高得点: %d", "Meilleur score niveau: %d"},
+		{"stats_record_endless","无尽最高分: %d", "Endless High Score: %d", "エンドレス最高得点: %d", "Meilleur score infini: %d"},
 	};
 
 	static {

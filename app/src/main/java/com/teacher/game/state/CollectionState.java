@@ -218,7 +218,7 @@ public class CollectionState extends State {
 		for (int i = 0; i < mTabCount; i++) {
 			if (scaleX >= mTabLeft[i] && scaleX <= mTabLeft[i] + mTabWidth[i]
 					&& scaleY >= TAB_Y && scaleY <= TAB_Y + TAB_H) {
-				Assets.playSound(Assets.selectedID);
+				Assets.playTab();
 				mSelectedTab = i;
 				updateCurrentEntries();
 				return true;
@@ -229,6 +229,7 @@ public class CollectionState extends State {
 		int backBtnX = (GameMainActivity.GAME_WIDTH - BACK_BTN_W) / 2;
 		if (scaleX >= backBtnX && scaleX <= backBtnX + BACK_BTN_W
 				&& scaleY >= BACK_BTN_Y && scaleY <= BACK_BTN_Y + BACK_BTN_H) {
+			Assets.playBack();
 			setCurrentState(new MenuState());
 			return true;
 		}

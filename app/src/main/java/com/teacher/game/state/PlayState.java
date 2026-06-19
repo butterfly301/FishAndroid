@@ -157,7 +157,30 @@ public class PlayState extends State {
 		mCompanionCharge = 0;
 		mModeRules = ModeRules.forMode(mEndlessMode);
 		Assets.stopMusic();
-		Assets.playMusic("backgoundsound.mid", true);
+		if (mEndlessMode) {
+			Assets.playEndlessBGM();
+		} else {
+			Assets.playLevelBGM(mLevelIndex);
+		}
+
+		// ---- Statistics ----
+		GameMainActivity.incrementStatGamesPlayed();
+
+		// ---- Apply shop items ----
+		if (GameMainActivity.hasShopShield()) {
+			mMyFish.mHasShield = true;
+			GameMainActivity.setShopShield(false); // consume
+		}
+		if (GameMainActivity.hasShopExtraLife()) {
+			mLife++;
+			if (mLife > 99) mLife = 99;
+			GameMainActivity.setShopExtraLife(false); // consume
+		}
+		if (GameMainActivity.hasShopSpeed()) {
+			mSpeedTimer = PowerUpType.SPEED.duration;
+			mMyFish.mSpeedMultiplier = 2.0f;
+			GameMainActivity.setShopSpeed(false); // consume
+		}
 
 		mMyFish = new MyFish();
 		mMyFish.mSpeedMultiplier = 1.0f;
@@ -722,6 +745,10 @@ public class PlayState extends State {
 	void onPlayerEatFish(Fish fish, int points) {
 		mStats.fishEaten++;
 		mRoundFishEaten++;
+		// Award coins for shop
+		int coinReward = (fish.mSize + 1) * 2;
+		GameMainActivity.addCoins(coinReward);
+		GameMainActivity.addStatTotalCoinsEarned(coinReward);
 		if (mMyFish.mNonceState == Fish.SWIML || mMyFish.mNonceState == Fish.SWERVE_L) {
 			mMyFish.setNonceState(Fish.EATL);
 		} else if (mMyFish.mNonceState == Fish.SWIMR || mMyFish.mNonceState == Fish.SWERVE_R) {
@@ -766,6 +793,8 @@ public class PlayState extends State {
 		addScore(points);
 		mStats.companionAssists++;
 		companion.recordAssistEat();
+		GameMainActivity.addCoins(1);
+		GameMainActivity.addStatTotalCoinsEarned(1);
 		fish.setPosition(Integer.MAX_VALUE, Integer.MAX_VALUE);
 	}
 
@@ -839,6 +868,11 @@ public class PlayState extends State {
 		GameMainActivity.addFishEaten(mRoundFishEaten);
 		GameMainActivity.addPowerUpsCollected(mRoundPowerUpsCollected);
 		GameMainActivity.updateComboPeak(mStats.comboPeak);
+
+		// Statistics tracking
+		int survivalSec = (int) mStats.survivalTime;
+		GameMainActivity.addStatSurvival(survivalSec);
+		GameMainActivity.updateStatLongestSurvival(survivalSec);
 	}
 
 	void restartGame() {

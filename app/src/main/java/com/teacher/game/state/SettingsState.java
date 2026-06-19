@@ -185,24 +185,28 @@ public class SettingsState extends State {
 
 		// Back button
 		if (isInside(scaleX, scaleY, BACK_BTN_X, BACK_BTN_Y, BACK_BTN_W, BACK_BTN_H)) {
+			Assets.playBack();
 			setCurrentState(new MenuState());
 			return true;
 		}
 
 		// Row 0: Sound effects toggle
 		if (handleToggleTap(scaleX, scaleY, 0)) {
+			Assets.playClick();
 			GameMainActivity.setSoundEnabled(!GameMainActivity.isSoundEnabled());
 			return true;
 		}
 
 		// Row 1: BGM toggle
 		if (handleToggleTap(scaleX, scaleY, 1)) {
+			Assets.playClick();
 			GameMainActivity.setMusicEnabled(!GameMainActivity.isMusicEnabled());
 			return true;
 		}
 
 		// Row 2: Language selector
 		if (handleLanguageTap(scaleX, scaleY)) {
+			Assets.playClick();
 			return true;
 		}
 
@@ -210,6 +214,7 @@ public class SettingsState extends State {
 		int rowY = getRowY(3);
 		int btnX = PANEL_X + PANEL_W - 60 - TOGGLE_W;
 		if (isInside(scaleX, scaleY, btnX, rowY, TOGGLE_W, ROW_H)) {
+			Assets.playClick();
 			GameMainActivity.resetAllScores();
 			mResetFeedback = L10n.get("settings_reset_done");
 			mResetTimer = 1.5f;

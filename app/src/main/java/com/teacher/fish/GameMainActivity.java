@@ -26,6 +26,18 @@ public class GameMainActivity extends Activity {
 	private static final String KEY_ACHIEVE_FISH_EATEN = "achieve_fish_eaten";
 	private static final String KEY_ACHIEVE_POWERUPS = "achieve_powerups";
 	private static final String KEY_ACHIEVE_COMBO_PEAK = "achieve_combo_peak";
+
+	// ---- Shop / Coin system ----
+	private static final String KEY_COINS = "coins";
+	private static final String KEY_SHOP_SHIELD = "shop_shield";
+	private static final String KEY_SHOP_EXTRA_LIFE = "shop_extralife";
+	private static final String KEY_SHOP_SPEED = "shop_speed";
+
+	// ---- Statistics tracking ----
+	private static final String KEY_STAT_GAMES_PLAYED = "stat_games";
+	private static final String KEY_STAT_TOTAL_SURVIVAL = "stat_survival";
+	private static final String KEY_STAT_LONGEST_SURVIVAL = "stat_longest";
+	private static final String KEY_STAT_TOTAL_COINS_EARNED = "stat_coins_total";
 	public static GameView sGame;
 	public static AssetManager assets;
 
@@ -253,6 +265,167 @@ public class GameMainActivity extends Activity {
 				.putInt(KEY_ACHIEVE_POWERUPS, 0)
 				.putInt(KEY_ACHIEVE_COMBO_PEAK, 0)
 				.apply();
+	}
+
+	// ================================================================
+	//  Shop / Coin system
+	// ================================================================
+
+	public static int getCoins() {
+		if (sGame == null) return 0;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		return prefs.getInt(KEY_COINS, 0);
+	}
+
+	public static void addCoins(int amount) {
+		if (sGame == null || amount <= 0) return;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int current = prefs.getInt(KEY_COINS, 0);
+		prefs.edit().putInt(KEY_COINS, current + amount).apply();
+	}
+
+	public static boolean spendCoins(int amount) {
+		if (sGame == null || amount <= 0) return false;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int current = prefs.getInt(KEY_COINS, 0);
+		if (current < amount) return false;
+		prefs.edit().putInt(KEY_COINS, current - amount).apply();
+		return true;
+	}
+
+	public static void resetCoins() {
+		if (sGame == null) return;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		prefs.edit().putInt(KEY_COINS, 0).apply();
+	}
+
+	// ---- Purchased consumable items ----
+
+	public static boolean hasShopShield() {
+		if (sGame == null) return false;
+		return sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.getBoolean(KEY_SHOP_SHIELD, false);
+	}
+
+	public static void setShopShield(boolean owned) {
+		if (sGame == null) return;
+		sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.edit().putBoolean(KEY_SHOP_SHIELD, owned).apply();
+	}
+
+	public static boolean hasShopExtraLife() {
+		if (sGame == null) return false;
+		return sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.getBoolean(KEY_SHOP_EXTRA_LIFE, false);
+	}
+
+	public static void setShopExtraLife(boolean owned) {
+		if (sGame == null) return;
+		sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.edit().putBoolean(KEY_SHOP_EXTRA_LIFE, owned).apply();
+	}
+
+	public static boolean hasShopSpeed() {
+		if (sGame == null) return false;
+		return sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.getBoolean(KEY_SHOP_SPEED, false);
+	}
+
+	public static void setShopSpeed(boolean owned) {
+		if (sGame == null) return;
+		sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.edit().putBoolean(KEY_SHOP_SPEED, owned).apply();
+	}
+
+	/** Consume (clear) all purchased items for a new round. */
+	public static void clearConsumables() {
+		if (sGame == null) return;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		prefs.edit()
+				.putBoolean(KEY_SHOP_SHIELD, false)
+				.putBoolean(KEY_SHOP_EXTRA_LIFE, false)
+				.putBoolean(KEY_SHOP_SPEED, false)
+				.apply();
+	}
+
+	// ================================================================
+	//  Statistics tracking
+	// ================================================================
+
+	public static int getStatGamesPlayed() {
+		if (sGame == null) return 0;
+		return sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.getInt(KEY_STAT_GAMES_PLAYED, 0);
+	}
+
+	public static void incrementStatGamesPlayed() {
+		if (sGame == null) return;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int cur = prefs.getInt(KEY_STAT_GAMES_PLAYED, 0);
+		prefs.edit().putInt(KEY_STAT_GAMES_PLAYED, cur + 1).apply();
+	}
+
+	/** Total survival seconds across all games. */
+	public static int getStatTotalSurvival() {
+		if (sGame == null) return 0;
+		return sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.getInt(KEY_STAT_TOTAL_SURVIVAL, 0);
+	}
+
+	public static void addStatSurvival(int seconds) {
+		if (sGame == null || seconds <= 0) return;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int cur = prefs.getInt(KEY_STAT_TOTAL_SURVIVAL, 0);
+		prefs.edit().putInt(KEY_STAT_TOTAL_SURVIVAL, cur + seconds).apply();
+	}
+
+	/** Longest single-game survival in seconds. */
+	public static int getStatLongestSurvival() {
+		if (sGame == null) return 0;
+		return sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.getInt(KEY_STAT_LONGEST_SURVIVAL, 0);
+	}
+
+	public static void updateStatLongestSurvival(int seconds) {
+		if (sGame == null || seconds <= 0) return;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int cur = prefs.getInt(KEY_STAT_LONGEST_SURVIVAL, 0);
+		if (seconds > cur) {
+			prefs.edit().putInt(KEY_STAT_LONGEST_SURVIVAL, seconds).apply();
+		}
+	}
+
+	/** Total coins earned across all games (append-only, never decreased). */
+	public static int getStatTotalCoinsEarned() {
+		if (sGame == null) return 0;
+		return sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+				.getInt(KEY_STAT_TOTAL_COINS_EARNED, 0);
+	}
+
+	public static void addStatTotalCoinsEarned(int amount) {
+		if (sGame == null || amount <= 0) return;
+		SharedPreferences prefs = sGame.getContext()
+				.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+		int cur = prefs.getInt(KEY_STAT_TOTAL_COINS_EARNED, 0);
+		prefs.edit().putInt(KEY_STAT_TOTAL_COINS_EARNED, cur + amount).apply();
 	}
 
 	// ================================================================
