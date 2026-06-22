@@ -171,6 +171,7 @@ public class LayerManager {
 		// if g == null g.getClipX will throw NullPointerException;
 		// save the original clip
 
+		canvas.save();
 		// translate the LayerManager co-ordinates to Screen co-ordinates
 		canvas.translate(x - viewX, y - viewY);
 		// set the clip to view window
@@ -188,10 +189,7 @@ public class LayerManager {
 		}
 
 		// restore Screen co-ordinates origin and clip
-
-		canvas.translate(-x + viewX, -y + viewY);
-
-		//canvas.restore();
+		canvas.restore();
 	}
 
 	/**

@@ -140,7 +140,6 @@ public class PlayState extends State {
 		mScorePopups = new ArrayList<ScorePopup>();
 		mParticles = new ArrayList<Particle>();
 		mHitFlashTimer = 0;
-		mTimeLimitTimer = mLevelConfig.timeLimit;
 		mRoundFishEaten = 0;
 		mRoundPowerUpsCollected = 0;
 		mDiscoveryText = null;
@@ -148,6 +147,7 @@ public class PlayState extends State {
 		mHighScore = GameMainActivity.getHighScore();
 		mEndlessHighScore = GameMainActivity.getEndlessHighScore();
 		mLevelConfig = LevelRepository.getLevel(mLevelIndex);
+		mTimeLimitTimer = mLevelConfig.timeLimit;
 		mPlayBackground = Assets.getPlayBackground(mLevelIndex, mEndlessMode);
 		mAutoMode = GameMainActivity.isAutoMode();
 		mAutoPilot = new AutoPilot();
@@ -162,6 +162,9 @@ public class PlayState extends State {
 		mCompanionFishList = new ArrayList<CompanionFish>();
 		mCompanionCharge = 0;
 		mModeRules = ModeRules.forMode(mEndlessMode);
+		mMyFish = new MyFish();
+		mMyFish.mSpeedMultiplier = 1.0f;
+		mMyFish.mHasShield = false;
 		Assets.stopMusic();
 		if (mEndlessMode) {
 			Assets.playEndlessBGM();
@@ -187,10 +190,6 @@ public class PlayState extends State {
 			mMyFish.mSpeedMultiplier = 2.0f;
 			GameMainActivity.setShopSpeed(false); // consume
 		}
-
-		mMyFish = new MyFish();
-		mMyFish.mSpeedMultiplier = 1.0f;
-		mMyFish.mHasShield = false;
 		mFloatGrassR = new Sprite(Assets.floatgrass, 76, 62);
 		mFloatGrassR.setFrameSequence(new int[] {1, 0, 2, 0});
 		mFloatGrassR.setPosition(980, 648);
